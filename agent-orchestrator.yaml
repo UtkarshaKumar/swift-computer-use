@@ -1,0 +1,128 @@
+# Agent Orchestrator — Semantic Display Daemon
+# Agents: Claude (Dev1), Gemini (Dev2), Minimax (Dev3), Kimi (Dev4)
+# Dashboard: http://localhost:3000
+# Start: ao start (from this directory)
+
+port: 3000
+
+defaults:
+  runtime: tmux
+  workspace: worktree
+  notifiers: [desktop]
+
+projects:
+
+  # ── Dev1: Claude — smart, 1-2hrs, critical-path issues ──────────────────────
+  sdd-claude:
+    name: "SDD — Claude (Dev1 critical-path)"
+    repo: UtkarshaKumar/semantic-display-daemon
+    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
+    defaultBranch: main
+    sessionPrefix: claude
+    agent: claude-code
+    agentConfig:
+      permissions: skip
+      model: claude-sonnet-4-6
+    symlinks: [.env]
+    reactions:
+      ci-failed:
+        auto: true
+        retries: 2
+      changes-requested:
+        auto: true
+        escalate-after: 30m
+      approved-and-green:
+        auto: false  # Claude's PRs need manual review (critical-path)
+
+  # ── Dev2: Gemini — capable, 2-4hrs, core implementation ─────────────────────
+  sdd-gemini:
+    name: "SDD — Gemini (Dev2 core-impl)"
+    repo: UtkarshaKumar/semantic-display-daemon
+    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
+    defaultBranch: main
+    sessionPrefix: gemini
+    agent: custom
+    agentConfig:
+      # Native Gemini CLI (gemini v0.35.2) — interactive coding agent
+      command: gemini
+    reactions:
+      ci-failed:
+        auto: true
+        retries: 3
+      changes-requested:
+        auto: true
+        escalate-after: 45m
+
+  # ── Dev3: Minimax — bounded tasks via opencode ───────────────────────────────
+  sdd-minimax:
+    name: "SDD — Minimax (Dev3 bounded)"
+    repo: UtkarshaKumar/semantic-display-daemon
+    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
+    defaultBranch: main
+    sessionPrefix: minimax
+    agent: custom
+    agentConfig:
+      # opencode with MiniMax-M2.5 — spec-driven, bounded tasks
+      command: opencode --model minimax-coding-plan/MiniMax-M2.5
+    reactions:
+      ci-failed:
+        auto: true
+        retries: 3
+        escalate-after: 3
+      changes-requested:
+        auto: true
+        escalate-after: 20m
+
+  # ── Dev4: Kimi — bounded tasks via native Kimi CLI ───────────────────────────
+  sdd-kimi:
+    name: "SDD — Kimi (Dev4 bounded)"
+    repo: UtkarshaKumar/semantic-display-daemon
+    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
+    defaultBranch: main
+    sessionPrefix: kimi
+    agent: custom
+    agentConfig:
+      # Native Kimi CLI (kimi v1.16.0) — strong at Swift/systems code
+      command: kimi
+    reactions:
+      ci-failed:
+        auto: true
+        retries: 3
+        escalate-after: 3
+      changes-requested:
+        auto: true
+        escalate-after: 20m
+
+# Notification routing
+notifiers:
+  desktop:
+    plugin: desktop
+
+# Global reaction defaults
+reactions:
+  agent-stuck:
+    threshold: 15m
+    action: notify
+    priority: urgent
+  agent-needs-input:
+    action: notify
+    priority: urgent
+  agent-idle-no-pr:
+    threshold: 30m
+    action: notify
+    priority: warning
+  all-complete:
+    action: notify
+    priority: info
+    include-summary: true
+
+# ─── ISSUE → AGENT ROUTING ───────────────────────────────────────────────────
+# Spawn issues to the correct project manually:
+#
+#   Claude  (issues #1, #2):  ao spawn sdd-claude 1   ao spawn sdd-claude 2
+#   Gemini  (issues #3,4,5):  ao spawn sdd-gemini 3   ao spawn sdd-gemini 4
+#   Minimax (issues #6,7,8):  ao spawn sdd-minimax 6  ao batch-spawn sdd-minimax 7 8
+#   Kimi    (issues #9,10,11): ao spawn sdd-kimi 9    ao batch-spawn sdd-kimi 10 11
+#
+# Or let the orchestrator agent decide by running: ao start sdd-claude
+# ─────────────────────────────────────────────────────────────────────────────

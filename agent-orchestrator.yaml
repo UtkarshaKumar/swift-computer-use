@@ -31,7 +31,7 @@ projects:
   sdd:
     name: "Semantic Display Daemon"
     repo: UtkarshaKumar/semantic-display-daemon
-    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
+    path: "~/Documents/Utkarsh 26 Workspace/BUILD/Semantic Display Daemon"
     defaultBranch: main
     sessionPrefix: sdd
     agentConfig:

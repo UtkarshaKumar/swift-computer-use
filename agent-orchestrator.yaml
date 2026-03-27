@@ -1,109 +1,79 @@
 # Agent Orchestrator — Semantic Display Daemon
-# Agents: Claude (Dev1), Gemini (Dev2), Minimax (Dev3), Kimi (Dev4)
 # Dashboard: http://localhost:3000
-# Start: ao start (from this directory)
+# Start:     ao start (from this directory)
+#
+# ── Spawn commands by agent ───────────────────────────────────────────────────
+# Claude  (#1,#2):       ao spawn sdd 1 --agent claude-code
+#                        ao spawn sdd 2 --agent claude-code
+#
+# Gemini  (#3,#4,#5):    ao spawn sdd 3 --agent gemini
+#                        ao spawn sdd 4 --agent gemini
+#                        ao spawn sdd 5 --agent gemini
+#
+# Minimax (#6,#7,#8):    ao spawn sdd 6 --agent opencode-minimax
+#                        ao batch-spawn sdd 7 8 --agent opencode-minimax
+#
+# Kimi    (#9,#10,#11):  ao spawn sdd 9 --agent kimi
+#                        ao batch-spawn sdd 10 11 --agent kimi
+#
+# Start Claude issue #1 first — it unblocks everyone else.
+# ─────────────────────────────────────────────────────────────────────────────
 
 port: 3000
 
 defaults:
   runtime: tmux
   workspace: worktree
+  agent: claude-code
   notifiers: [desktop]
 
 projects:
-
-  # ── Dev1: Claude — smart, 1-2hrs, critical-path issues ──────────────────────
-  sdd-claude:
-    name: "SDD — Claude (Dev1 critical-path)"
+  sdd:
+    name: "Semantic Display Daemon"
     repo: UtkarshaKumar/semantic-display-daemon
     path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
     defaultBranch: main
-    sessionPrefix: claude
-    agent: claude-code
+    sessionPrefix: sdd
     agentConfig:
-      permissions: skip
-      model: claude-sonnet-4-6
-    symlinks: [.env]
+      permissions: skip           # claude-code default
     reactions:
       ci-failed:
         auto: true
         retries: 2
+        escalate-after: 2
       changes-requested:
         auto: true
         escalate-after: 30m
       approved-and-green:
-        auto: false  # Claude's PRs need manual review (critical-path)
+        auto: false               # manual merge review
+      agent-stuck:
+        threshold: 15m
+        action: notify
 
-  # ── Dev2: Gemini — capable, 2-4hrs, core implementation ─────────────────────
-  sdd-gemini:
-    name: "SDD — Gemini (Dev2 core-impl)"
-    repo: UtkarshaKumar/semantic-display-daemon
-    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
-    defaultBranch: main
-    sessionPrefix: gemini
-    agent: custom
-    agentConfig:
-      # Native Gemini CLI (gemini v0.35.2) — interactive coding agent
-      command: gemini
-    reactions:
-      ci-failed:
-        auto: true
-        retries: 3
-      changes-requested:
-        auto: true
-        escalate-after: 45m
+# ── Custom agent definitions ──────────────────────────────────────────────────
+# These are referenced via --agent flag on ao spawn
+agents:
+  gemini:
+    command: gemini               # native Gemini CLI v0.35.2
+    processName: gemini
 
-  # ── Dev3: Minimax — bounded tasks via opencode ───────────────────────────────
-  sdd-minimax:
-    name: "SDD — Minimax (Dev3 bounded)"
-    repo: UtkarshaKumar/semantic-display-daemon
-    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
-    defaultBranch: main
-    sessionPrefix: minimax
-    agent: custom
-    agentConfig:
-      # opencode with MiniMax-M2.5 — spec-driven, bounded tasks
-      command: opencode --model minimax-coding-plan/MiniMax-M2.5
-    reactions:
-      ci-failed:
-        auto: true
-        retries: 3
-        escalate-after: 3
-      changes-requested:
-        auto: true
-        escalate-after: 20m
+  kimi:
+    command: kimi                 # native Kimi CLI v1.16.0
+    processName: kimi
 
-  # ── Dev4: Kimi — bounded tasks via native Kimi CLI ───────────────────────────
-  sdd-kimi:
-    name: "SDD — Kimi (Dev4 bounded)"
-    repo: UtkarshaKumar/semantic-display-daemon
-    path: ~/Documents/Utkarsh\ 26\ Workspace/BUILD/Semantic\ Display\ Daemon
-    defaultBranch: main
-    sessionPrefix: kimi
-    agent: custom
-    agentConfig:
-      # Native Kimi CLI (kimi v1.16.0) — strong at Swift/systems code
-      command: kimi
-    reactions:
-      ci-failed:
-        auto: true
-        retries: 3
-        escalate-after: 3
-      changes-requested:
-        auto: true
-        escalate-after: 20m
+  opencode-minimax:
+    command: opencode --model minimax-coding-plan/MiniMax-M2.5
+    processName: opencode
 
-# Notification routing
+  opencode-kimi:
+    command: opencode --model kimi-for-coding/kimi-k2-thinking
+    processName: opencode
+
 notifiers:
   desktop:
     plugin: desktop
 
-# Global reaction defaults
 reactions:
-  agent-stuck:
-    threshold: 15m
-    action: notify
-    priority: urgent
   agent-needs-input:
     action: notify
     priority: urgent
@@ -115,14 +85,3 @@ reactions:
     action: notify
     priority: info
     include-summary: true
-
-# ─── ISSUE → AGENT ROUTING ───────────────────────────────────────────────────
-# Spawn issues to the correct project manually:
-#
-#   Claude  (issues #1, #2):  ao spawn sdd-claude 1   ao spawn sdd-claude 2
-#   Gemini  (issues #3,4,5):  ao spawn sdd-gemini 3   ao spawn sdd-gemini 4
-#   Minimax (issues #6,7,8):  ao spawn sdd-minimax 6  ao batch-spawn sdd-minimax 7 8
-#   Kimi    (issues #9,10,11): ao spawn sdd-kimi 9    ao batch-spawn sdd-kimi 10 11
-#
-# Or let the orchestrator agent decide by running: ao start sdd-claude
-# ─────────────────────────────────────────────────────────────────────────────

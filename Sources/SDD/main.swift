@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import SDDCore
+import SDDBrain
 
 // ─────────────────────────────────────────────────────────────────
 // Semantic Display Daemon — bootstrap

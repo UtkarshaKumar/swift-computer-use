@@ -1,6 +1,6 @@
 import XCTest
 import ApplicationServices
-@testable import SDD
+@testable import SDDBrain
 
 final class ActionExecutorTests: XCTestCase {
     var executor: AXActionExecutor!

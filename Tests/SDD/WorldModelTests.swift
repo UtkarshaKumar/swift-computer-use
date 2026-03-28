@@ -1,6 +1,6 @@
 import XCTest
 import SDDCore
-@testable import SDD
+@testable import SDDBrain
 
 /// Tests for the canonical WorldModel protocol implementation.
 ///

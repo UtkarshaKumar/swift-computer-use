@@ -17,6 +17,7 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
     // MARK: - State (all access on diffQueue)
 
     private var elements: [UIElementID: UIElement] = [:]
+    private var liveRefs: [UIElementID: AXUIElement] = [:]   // retained live AX handles
     private var focusedID: UIElementID?
     private var trackedPIDs: Set<pid_t> = []
     private var subscribers: [(id: UUID, handler: @Sendable (WorldModelDiff) -> Void)] = []
@@ -49,6 +50,7 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
         case .focusedUIElementChanged:
             let newID = UIElementID(event.elementRef)
             focusedID = newID
+            liveRefs[newID] = event.elementRef
             // Hydrate the newly focused element if we haven't seen it
             if elements[newID] == nil {
                 if let el = hydrate(event.elementRef, pid: pidOf(event.elementRef)) {
@@ -80,6 +82,7 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
 
         case .uiElementDestroyed:
             let deadID = UIElementID(event.elementRef)
+            liveRefs.removeValue(forKey: deadID)
             if elements.removeValue(forKey: deadID) != nil {
                 removed.append(deadID)
                 if focusedID == deadID { focusedID = nil }
@@ -237,6 +240,8 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
         var stack: [(AXUIElement, Int)] = [(root, 0)]
         while !stack.isEmpty {
             let (ref, depth) = stack.removeLast()
+            let id = UIElementID(ref)
+            liveRefs[id] = ref   // retain live handle for dispatch
             if let el = hydrate(ref, pid: pid) { result.append(el) }
             guard depth < maxDepth else { continue }
             var childRef: CFTypeRef?
@@ -246,6 +251,26 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
             }
         }
         return result
+    }
+
+    /// Returns the live AXUIElement for the first element matching label + role.
+    /// Called by TaskOrchestrator when dispatching actions.
+    public func axElement(for label: String, role: String) -> AXUIElement? {
+        diffQueue.sync {
+            // Find UIElementID matching label + role (role check is optional if role is empty)
+            let match = elements.first { _, el in
+                (el.label ?? "").lowercased() == label.lowercased() &&
+                (role.isEmpty || axRoleString(el.role).lowercased() == role.lowercased() ||
+                 el.role.rawValue.lowercased() == role.lowercased())
+            }
+            guard let id = match?.key else { return nil }
+            return liveRefs[id]
+        }
+    }
+
+    /// Returns the live AXUIElement for a known UIElementID.
+    public func axElement(for id: UIElementID) -> AXUIElement? {
+        diffQueue.sync { liveRefs[id] }
     }
 
     private func childIDsOf(_ ref: AXUIElement) -> [UIElementID] {

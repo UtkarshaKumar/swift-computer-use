@@ -27,6 +27,7 @@ let package = Package(
         .executable(name: "sdd-grpc",   targets: ["SDDGRPCServer"]),
         .executable(name: "sdd",        targets: ["SDDCLI"]),
         .library(name: "SDDCore",       targets: ["SDDCore"]),
+        .library(name: "SDDBrain",      targets: ["SDDBrain"]),
     ],
     dependencies: [
         // grpc-swift-2.git is the canonical v2 repo (migrated from grpc-swift.git at 2.3.0)
@@ -52,12 +53,24 @@ let package = Package(
             ]
         ),
 
+        // MARK: - SDDBrain (shared brain library)
+        // FastBrain, SlowBrain, WorldModel, TaskOrchestrator, ActionExecutor
+        // Imported by both SDD (daemon) and SDDCLI (sdd run command)
+        .target(
+            name: "SDDBrain",
+            dependencies: ["SDDCore"],
+            path: "Sources/SDDBrain",
+            linkerSettings: [
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AppKit"),
+            ]
+        ),
+
         // MARK: - SDD daemon binary
-        // Fast brain rule engine, ScreenCaptureKit capture, slow brain router
-        // Depends on SDDCore for AX layer + action executor
+        // Wires SDDBrain components to AXObserver and runs the event loop
         .executableTarget(
             name: "SDD",
-            dependencies: ["SDDCore"],
+            dependencies: ["SDDCore", "SDDBrain"],
             path: "Sources/SDD",
             linkerSettings: [
                 .linkedFramework("ApplicationServices"),
@@ -88,15 +101,20 @@ let package = Package(
             name: "SDDCLI",
             dependencies: [
                 "SDDCore",
+                "SDDBrain",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
-            path: "Sources/SDDCLI"
+            path: "Sources/SDDCLI",
+            linkerSettings: [
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AppKit"),
+            ]
         ),
 
         // MARK: - Tests
         .testTarget(
             name: "SDDTests",
-            dependencies: ["SDDCore", "SDD"],
+            dependencies: ["SDDCore", "SDDBrain", "SDD"],
             path: "Tests/SDDTests",
             linkerSettings: [
                 .linkedFramework("ApplicationServices"),
@@ -105,7 +123,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SDDWorldModelTests",
-            dependencies: ["SDDCore", "SDD"],
+            dependencies: ["SDDCore", "SDDBrain"],
             path: "Tests/SDD",
             linkerSettings: [
                 .linkedFramework("ApplicationServices"),

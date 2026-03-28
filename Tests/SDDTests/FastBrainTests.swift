@@ -1,6 +1,6 @@
 import XCTest
 import CoreGraphics
-@testable import SDD
+@testable import SDDBrain
 
 // MARK: - Test helpers
 

@@ -55,7 +55,7 @@ public enum AXActionError: Error {
 // MARK: - Implementation
 
 /// Core implementation of the SDD ActionExecutor.
-public class AXActionExecutor: AXActionExecutorProtocol {
+public class AXActionExecutor: AXActionExecutorProtocol, @unchecked Sendable {
     /// Track coordinate actions for performance evaluation (EVAL-SYS-004).
     private(set) public var coordinateActionCount: Int = 0
     

@@ -11,15 +11,15 @@ public enum SlowBrainError: Error {
 }
 
 /// A router that serializes the world model and communicates with a slow brain LLM.
-public struct SlowBrainRouter {
-    public enum Provider: String, Codable {
+public struct SlowBrainRouter: Sendable {
+    public enum Provider: String, Codable, Sendable {
         case claude = "claude"
         case openAI = "openai"
     }
 
     public let config: Config
     
-    public struct Config {
+    public struct Config: Sendable {
         public var provider: Provider = .claude
         public var apiKey: String?
         public var endpoint: URL?
@@ -37,35 +37,36 @@ public struct SlowBrainRouter {
         self.config = config
     }
 
-    /// Routes the current world model to the slow brain for an action plan.
-    public func route(worldModel: WorldModel) async throws -> [ActionPlan] {
+    /// Routes the current world model + goal to the slow brain for the next action step.
+    /// - Parameters:
+    ///   - goal: The high-level user goal (e.g. "apply for this job with my resume at ~/resume.pdf")
+    ///   - worldModel: Live world model; serialized to compact JSON context
+    public func route(goal: String, worldModel: WorldModel) async throws -> [ActionPlan] {
         guard !config.localOnly else {
             throw SlowBrainError.localOnlyModeActive
         }
 
         // 1. Context Serialization (Target: < 10ms)
-        let startTime = Date()
         let context = try serializeContext(from: worldModel, expanded: false)
-        let serializationDuration = Date().timeIntervalSince(startTime)
-        
-        // Logging for performance tracking (optional)
-        // print("Serialization time: \(serializationDuration * 1000)ms")
 
         // 2. LLM Call
         do {
-            let response = try await callLLM(with: context)
-            
-            // 3. Response Parsing
+            let response = try await callLLM(with: context, goal: goal)
             return try parseActionPlan(from: response)
         } catch {
-            // 4. Progressive Expansion on failure
+            // 3. Progressive Expansion on parse failure — include element values
             if case SlowBrainError.parsingFailed = error {
                 let expandedContext = try serializeContext(from: worldModel, expanded: true)
-                let response = try await callLLM(with: expandedContext)
+                let response = try await callLLM(with: expandedContext, goal: goal)
                 return try parseActionPlan(from: response)
             }
             throw error
         }
+    }
+
+    /// Legacy overload — routes without an explicit goal (used by tests and EVAL harness).
+    public func route(worldModel: WorldModel) async throws -> [ActionPlan] {
+        try await route(goal: "", worldModel: worldModel)
     }
 
     // MARK: - Internal Implementation
@@ -128,41 +129,84 @@ public struct SlowBrainRouter {
     }
 
     /// Communicates with the configured LLM endpoint.
-    internal func callLLM(with contextData: Data) async throws -> Data {
+    internal func callLLM(with contextData: Data, goal: String = "") async throws -> Data {
         let endpoint = config.endpoint ?? URL(string: "https://api.anthropic.com/v1/messages")!
-        
+
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
+
         if let apiKey = config.apiKey {
             request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         }
-        
-        // Build payload based on provider
+
+        let contextString = String(data: contextData, encoding: .utf8) ?? ""
+
+        let prompt: String
+        if goal.isEmpty {
+            prompt = """
+            Analyze this screen state and return the next action as a JSON array.
+            Screen state: \(contextString)
+
+            Return ONLY a JSON array like:
+            [{"action":"click","element_selector":"Button Label","value":null,"verify_condition":null}]
+
+            Actions: "click", "type", "scroll", "done"
+            For scroll, set value to "up" or "down".
+            If the goal appears complete, return [{"action":"done","element_selector":"","value":null,"verify_condition":"goal complete"}]
+            """
+        } else {
+            prompt = """
+            You are a macOS computer-use agent. Your goal is:
+            GOAL: \(goal)
+
+            Current screen state (JSON):
+            \(contextString)
+
+            What is the SINGLE NEXT ACTION to take toward completing the goal?
+            Return ONLY a JSON array with one action object:
+            [{"action":"click","element_selector":"Exact Button Label","value":null,"verify_condition":null}]
+
+            Rules:
+            - "action" must be one of: "click", "type", "scroll", "done"
+            - "element_selector" must exactly match a label from the screen state
+            - For "type", set "value" to the text to enter
+            - For "scroll", set "value" to "up" or "down"
+            - If the goal is already complete, return [{"action":"done","element_selector":"","value":null,"verify_condition":"goal complete"}]
+            - Return ONLY the JSON array, no markdown, no explanation
+            """
+        }
+
         let payload: [String: Any]
         if config.provider == .claude {
-            let contextString = String(data: contextData, encoding: .utf8) ?? ""
             payload = [
-                "model": "claude-3-opus-20240229",
-                "max_tokens": 1024,
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 512,
                 "messages": [
-                    ["role": "user", "content": "Analyze this screen state and provide an action plan in JSON format: \(contextString)"]
+                    ["role": "user", "content": prompt]
                 ]
             ]
         } else {
-            // Default/OpenAI implementation
-            payload = [:]
+            // OpenAI-compatible
+            payload = [
+                "model": "gpt-4o",
+                "max_tokens": 512,
+                "messages": [
+                    ["role": "user", "content": prompt]
+                ]
+            ]
         }
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
             throw SlowBrainError.invalidResponse
         }
-        
+
         return data
     }
 

@@ -513,7 +513,7 @@ public struct SlowBrainRouter: Sendable {
         if config.provider == .claude {
             payload = [
                 "model": config.resolvedModel,
-                "max_tokens": 256,
+                "max_tokens": 1024,
                 "messages": [[
                     "role": "user",
                     "content": [
@@ -529,7 +529,7 @@ public struct SlowBrainRouter: Sendable {
         } else {
             payload = [
                 "model": config.resolvedModel,
-                "max_tokens": 256,
+                "max_tokens": 1024,
                 "messages": [[
                     "role": "user",
                     "content": [
@@ -560,7 +560,7 @@ public struct SlowBrainRouter: Sendable {
 
         let payload: [String: Any] = [
             "model": config.resolvedModel,
-            "max_tokens": 256,
+            "max_tokens": 1024,
             "messages": [["role": "user", "content": prompt]]
         ]
 

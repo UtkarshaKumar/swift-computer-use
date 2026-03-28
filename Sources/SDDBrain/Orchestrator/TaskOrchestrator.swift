@@ -311,7 +311,12 @@ public actor TaskOrchestrator {
                 
                 let currentElementCount = worldModel.currentSnapshot.elements.count
                 if plan.action.lowercased() != "done" && plan.action.lowercased() != "wait" {
-                    if currentElementCount == lastElementCount {
+                    // Don't flag stuck on type/setValue — element count doesn't change when typing
+                    let lastActionWasType = historyCopy.last.map {
+                        ["type", "fill", "setvalue", "input"].contains($0.action.lowercased())
+                    } ?? false
+                    let evalStuckFromCount = !lastActionWasType && (currentElementCount == lastElementCount)
+                    if evalStuckFromCount {
                         evalStuck = true
                     } else {
                         evalStuck = false

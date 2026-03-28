@@ -1,0 +1,7 @@
+.build/
+*.o
+*.d
+*.dia
+Package.resolved
+*.xcodeproj
+DerivedData/

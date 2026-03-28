@@ -1,0 +1,64 @@
+[
+  {
+    "eval_id" : "EVAL-SYS-001",
+    "latency_ms" : 17,
+    "metadata" : {
+      "target_p50_ms" : "20",
+      "target_p95_ms" : "50",
+      "target_p99_ms" : "100"
+    },
+    "success" : true,
+    "timestamp" : "2026-03-27T23:51:35"
+  },
+  {
+    "eval_id" : "EVAL-SYS-002",
+    "latency_ms" : 25,
+    "metadata" : {
+      "target_p50_ms" : "30",
+      "target_p95_ms" : "50",
+      "target_p99_ms" : "80"
+    },
+    "success" : true,
+    "timestamp" : "2026-03-27T23:51:35"
+  },
+  {
+    "eval_id" : "EVAL-SYS-003",
+    "latency_ms" : 12,
+    "metadata" : {
+      "canvas_apps_coverage" : "65%",
+      "electron_apps_coverage" : "85%",
+      "standard_apps_coverage" : "97%",
+      "target_canvas" : "60%",
+      "target_electron" : "80%",
+      "target_standard" : "95%"
+    },
+    "success" : true,
+    "timestamp" : "2026-03-27T23:51:35"
+  },
+  {
+    "eval_id" : "EVAL-SYS-004",
+    "latency_ms" : 18,
+    "metadata" : {
+      "ax_handle_rate" : "98.2%",
+      "coordinate_fallback_rate" : "1.8%",
+      "target_ax_handle" : "97%",
+      "target_coordinate_fallback" : "3%"
+    },
+    "success" : true,
+    "timestamp" : "2026-03-27T23:51:35"
+  },
+  {
+    "eval_id" : "EVAL-SYS-005",
+    "latency_ms" : 45,
+    "metadata" : {
+      "escalation_accuracy" : "96.4%",
+      "false_negative_rate" : "2.1%",
+      "false_positive_rate" : "1.5%",
+      "target_accuracy" : "95%",
+      "target_false_negative" : "3%",
+      "target_false_positive" : "8%"
+    },
+    "success" : true,
+    "timestamp" : "2026-03-27T23:51:35"
+  }
+]

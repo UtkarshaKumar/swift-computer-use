@@ -1,0 +1,81 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "EVALRunner-arm64-apple-macosx-debug.exe": ["<EVALRunner-arm64-apple-macosx-debug.exe>"]
+  "EVALRunner-arm64-apple-macosx-debug.module": ["<EVALRunner-arm64-apple-macosx-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "main": ["<EVALRunner-arm64-apple-macosx-debug.exe>","<EVALRunner-arm64-apple-macosx-debug.module>"]
+  "test": ["<EVALRunner-arm64-apple-macosx-debug.exe>","<EVALRunner-arm64-apple-macosx-debug.module>"]
+default: "main"
+nodes:
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner":
+    is-mutated: true
+commands:
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner-entitlement.plist":
+    tool: write-auxiliary-file
+    inputs: ["<entitlement-plist>","<com.apple.security.get-task-allow>"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner-entitlement.plist"]
+    description: "Write auxiliary file /Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner-entitlement.plist"
+
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalCase.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalResult.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalRunner.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalStubs.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/main.swift"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/sources"]
+    description: "Write auxiliary file /Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/sources"
+
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swift.o"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.product/Objects.LinkFileList"
+
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+
+  "<EVALRunner-arm64-apple-macosx-debug.exe>":
+    tool: phony
+    inputs: ["<EVALRunner-arm64-apple-macosx-debug.exe-CodeSigning>"]
+    outputs: ["<EVALRunner-arm64-apple-macosx-debug.exe>"]
+
+  "<EVALRunner-arm64-apple-macosx-debug.module>":
+    tool: phony
+    inputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/Modules/EVALRunner.swiftmodule"]
+    outputs: ["<EVALRunner-arm64-apple-macosx-debug.module>"]
+
+  "C.EVALRunner-arm64-apple-macosx-debug.exe":
+    tool: shell
+    inputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.product/Objects.LinkFileList"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner"]
+    description: "Linking ./.build/arm64-apple-macosx/debug/EVALRunner"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-L","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug","-o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner","-module-name","EVALRunner","-Xlinker","-no_warn_duplicate_libraries","-emit-executable","-Xlinker","-alias","-Xlinker","_EVALRunner_main","-Xlinker","_main","-Xlinker","-rpath","-Xlinker","@loader_path","@/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.product/Objects.LinkFileList","-Xlinker","-rpath","-Xlinker","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx","-Xlinker","-rpath","-Xlinker","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-6.2/macosx","-target","arm64-apple-macosx10.13","-Xlinker","-add_ast_path","-Xlinker","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/Modules/EVALRunner.swiftmodule","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g"]
+
+  "C.EVALRunner-arm64-apple-macosx-debug.exe-entitlements":
+    tool: shell
+    inputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner-entitlement.plist"]
+    outputs: ["<EVALRunner-arm64-apple-macosx-debug.exe-CodeSigning>"]
+    description: "Applying debug entitlements to ./.build/arm64-apple-macosx/debug/EVALRunner"
+    args: ["codesign","--force","--sign","-","--entitlements","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner-entitlement.plist","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner"]
+
+  "C.EVALRunner-arm64-apple-macosx-debug.module":
+    tool: shell
+    inputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalCase.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalResult.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalRunner.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalStubs.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/main.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/sources"]
+    outputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swift.o","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/Modules/EVALRunner.swiftmodule"]
+    description: "Compiling Swift Module 'EVALRunner' (5 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","EVALRunner","-emit-dependencies","-emit-module","-emit-module-path","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/Modules/EVALRunner.swiftmodule","-output-file-map","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/output-file-map.json","-incremental","-c","@/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/sources","-I","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx10.13","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j10","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","EVALRunner_main","-swift-version","5","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","evalrunner"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Package.swift","/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

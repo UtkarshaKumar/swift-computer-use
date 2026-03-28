@@ -1,0 +1,7 @@
+.build/
+.build-new/
+*.o
+*.d
+*.dia
+Package.resolved
+opencode-run.log

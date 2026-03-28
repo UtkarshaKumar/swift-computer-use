@@ -140,7 +140,25 @@ struct RunCommand: AsyncParsableCommand {
             throw ExitCode.failure
         }
 
-        // 8. Run orchestrator
+        // 8. Check VNC availability (port 5900)
+        let vncClient = VNCClient()
+        var vncReady = false
+        do {
+            try await vncClient.connect()
+            vncReady = true
+            print("VNC: connected to macOS Screen Sharing (port 5900)")
+        } catch {
+            print("VNC: not available (\(error.localizedDescription)) — using ScreenCaptureKit fallback")
+        }
+
+        // 9. Check ShowUI availability
+        let showUIClient = ShowUIClient()
+        let showUIReady = await showUIClient.isAvailable()
+        print("ShowUI: \(showUIReady ? "available at http://127.0.0.1:7080" : "not available — using Claude vision fallback")")
+
+        let coordMapper = QuartzCoordinateMapper()
+
+        // 10. Run orchestrator
         print("Goal: \(goal)")
         print("Running (max \(maxSteps) steps, confidence threshold \(confidence))...")
 
@@ -148,12 +166,15 @@ struct RunCommand: AsyncParsableCommand {
             fastBrain: fastBrain,
             slowBrain: slowBrain,
             executor: executor,
-            worldModel: worldModel
+            worldModel: worldModel,
+            vncClient: vncReady ? vncClient : nil,
+            showUIClient: showUIReady ? showUIClient : nil,
+            coordMapper: coordMapper
         )
 
         let result = try await orchestrator.run(goal: goal, maxSteps: maxSteps)
 
-        // 9. Report outcome
+        // 11. Report outcome
         if result.succeeded {
             print("Done: completed in \(result.stepsExecuted) step(s). \(result.reason)")
         } else {

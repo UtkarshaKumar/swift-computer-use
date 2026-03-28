@@ -35,6 +35,9 @@ public actor TaskOrchestrator {
     private let executor: AXActionExecutor
     private let worldModel: WorldModel
     private let translator = ActionPlanTranslator()
+    private let vncClient: VNCClient?
+    private let showUIClient: ShowUIClient?
+    private let coordMapper: QuartzCoordinateMapper?
 
     /// Rolling action history — sent to LLM so it avoids repeating failed actions.
     private var actionHistory: [ActionPlan] = []
@@ -47,17 +50,121 @@ public actor TaskOrchestrator {
         fastBrain: FastBrain,
         slowBrain: SlowBrainRouter,
         executor: AXActionExecutor,
-        worldModel: WorldModel
+        worldModel: WorldModel,
+        vncClient: VNCClient? = nil,
+        showUIClient: ShowUIClient? = nil,
+        coordMapper: QuartzCoordinateMapper? = nil
     ) {
         self.fastBrain = fastBrain
         self.slowBrain = slowBrain
         self.executor = executor
         self.worldModel = worldModel
+        self.vncClient = vncClient
+        self.showUIClient = showUIClient
+        self.coordMapper = coordMapper
+    }
+
+    // MARK: - Feedback loop state
+
+    private struct SDDRunState: Codable {
+        var runID: String
+        var goal: String
+        var step: Int
+        var maxSteps: Int
+        var lastAction: LastAction?
+        var elementCount: Int
+        var stuck: Bool
+        var status: String   // "running" | "abort" | "completed" | "failed"
+        var updatedAt: Double
+
+        struct LastAction: Codable {
+            let action: String
+            let elementSelector: String
+            let x: Int?
+            let y: Int?
+        }
+    }
+
+    private let sddDir: URL = {
+        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".sdd")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
+    /// Write current run state atomically to ~/.sdd/run-state.json.
+    private func writeStatusFile(runID: String, goal: String, step: Int, maxSteps: Int,
+                                  lastPlan: ActionPlan?, elementCount: Int, stuck: Bool, status: String) {
+        let state = SDDRunState(
+            runID: runID,
+            goal: goal,
+            step: step,
+            maxSteps: maxSteps,
+            lastAction: lastPlan.map {
+                SDDRunState.LastAction(action: $0.action, elementSelector: $0.elementSelector, x: $0.x, y: $0.y)
+            },
+            elementCount: elementCount,
+            stuck: stuck,
+            status: status,
+            updatedAt: Date().timeIntervalSince1970
+        )
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        let tmp = sddDir.appendingPathComponent("run-state.json.tmp")
+        let dst = sddDir.appendingPathComponent("run-state.json")
+        try? data.write(to: tmp, options: .atomic)
+        try? FileManager.default.moveItem(at: tmp, to: dst)
+    }
+
+    /// Returns an override instruction if ~/.sdd/override.json exists and hasn't expired.
+    /// Deletes the file after reading (consumed once).
+    private func checkOverride() -> String? {
+        let url = sddDir.appendingPathComponent("override.json")
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let instruction = json["instruction"] as? String,
+              let expiresAt = json["expires_at"] as? Double,
+              Date().timeIntervalSince1970 < expiresAt
+        else {
+            try? FileManager.default.removeItem(at: url)
+            return nil
+        }
+        try? FileManager.default.removeItem(at: url)
+        return instruction
+    }
+
+    /// Returns an intervene action plan if ~/.sdd/intervene.json exists.
+    /// Deletes the file after reading (consumed once).
+    private func checkIntervene() -> ActionPlan? {
+        let url = sddDir.appendingPathComponent("intervene.json")
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let action = json["action"] as? String
+        else {
+            try? FileManager.default.removeItem(at: url)
+            return nil
+        }
+        try? FileManager.default.removeItem(at: url)
+        let x = json["x"] as? Int
+        let y = json["y"] as? Int
+        let value = json["value"] as? String
+        let selector = json["selector"] as? String ?? ""
+        return ActionPlan(action: action, elementSelector: selector, value: value,
+                          verifyCondition: nil, x: x, y: y)
+    }
+
+    /// Returns true if ~/.sdd/run-state.json has status == "abort".
+    private func checkAbort() -> Bool {
+        let url = sddDir.appendingPathComponent("run-state.json")
+        guard let data = try? Data(contentsOf: url),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let status = json["status"] as? String
+        else { return false }
+        return status == "abort"
     }
 
     // MARK: - Main loop
 
     public func run(goal: String, maxSteps: Int = 30) async throws -> OrchestratorResult {
+        let runID = UUID().uuidString
         var stepCount = 0
         var evalStuck = false
         var lastElementCount = 0
@@ -65,6 +172,34 @@ public actor TaskOrchestrator {
         fputs("[orchestrator] Starting — goal: \(goal)\n", stderr)
 
         while stepCount < maxSteps {
+            // Check for abort signal from CLI/MCP
+            if checkAbort() {
+                fputs("[orchestrator] Abort signal received — stopping.\n", stderr)
+                writeStatusFile(runID: runID, goal: goal, step: stepCount, maxSteps: maxSteps,
+                                lastPlan: actionHistory.last, elementCount: worldModel.currentSnapshot.elements.count,
+                                stuck: false, status: "abort")
+                return OrchestratorResult(succeeded: false, stepsExecuted: stepCount, reason: "Aborted by user/MCP")
+            }
+
+            // Check for manual intervention action
+            if let interventionPlan = checkIntervene() {
+                fputs("[orchestrator] Intervention: \(interventionPlan.action) '\(interventionPlan.elementSelector)'\n", stderr)
+                if let px = interventionPlan.x, let py = interventionPlan.y {
+                    await executeVision(plan: interventionPlan, x: px, y: py)
+                } else {
+                    await executeDirect(plan: interventionPlan)
+                }
+                try await Task.sleep(nanoseconds: 500_000_000)
+                await rescanFrontmostApp()
+                continue
+            }
+
+            // Check for override instruction to inject into next LLM call
+            let overrideInstruction = checkOverride()
+            if let override = overrideInstruction {
+                fputs("[orchestrator] Override injected: \(override.prefix(80))\n", stderr)
+            }
+
             // Detect stuck state from action history and eval hash
             let stuck = isStuck() || evalStuck
             if stuck {
@@ -82,8 +217,9 @@ public actor TaskOrchestrator {
 
             for attempt in 0...maxRetries {
                 do {
+                    let effectiveGoal = overrideInstruction.map { "OVERRIDE INSTRUCTION (highest priority): \($0)\n\nOriginal goal: \(goal)" } ?? goal
                     parsedPlans = try await slowBrain.routeWithVision(
-                        goal: goal,
+                        goal: effectiveGoal,
                         worldModel: worldModel,
                         actionHistory: historyCopy,
                         isStuck: stuck
@@ -115,6 +251,8 @@ public actor TaskOrchestrator {
 
             // Empty plan = goal complete
             if plans.isEmpty {
+                writeStatusFile(runID: runID, goal: goal, step: stepCount, maxSteps: maxSteps,
+                                lastPlan: actionHistory.last, elementCount: 0, stuck: false, status: "completed")
                 return OrchestratorResult(
                     succeeded: true,
                     stepsExecuted: stepCount,
@@ -125,6 +263,8 @@ public actor TaskOrchestrator {
             // Explicit "done" signal
             if let first = plans.first,
                first.action.lowercased() == "done" || first.action.lowercased() == "complete" {
+                writeStatusFile(runID: runID, goal: goal, step: stepCount, maxSteps: maxSteps,
+                                lastPlan: actionHistory.last, elementCount: 0, stuck: false, status: "completed")
                 return OrchestratorResult(
                     succeeded: true,
                     stepsExecuted: stepCount,
@@ -193,7 +333,7 @@ public actor TaskOrchestrator {
                                     elementLabelPattern: lbl,
                                     labelMatchType: .caseInsensitive,
                                     intentType: plan.action.lowercased() == "type" ? .typeValue : .pressButton,
-                                    resolvedAction: plan.action.lowercased() == "type" ? .setValue(targetRole: hitElement.role.rawValue, targetLabel: lbl, value: "{VALUE}") : .press(targetRole: hitElement.role.rawValue, targetLabel: lbl)
+                                    resolvedAction: plan.action.lowercased() == "type" ? .setValue(targetRole: hitElement.role.rawValue, targetLabel: lbl, value: plan.value ?? "") : .press(targetRole: hitElement.role.rawValue, targetLabel: lbl)
                                 )
                                 LearnedRulesStore.shared.append(rule)
                                 fputs("[orchestrator] Learnt FastBrain rule for '\(lbl)'\n", stderr)
@@ -205,8 +345,14 @@ public actor TaskOrchestrator {
                 }
                 lastElementCount = worldModel.currentSnapshot.elements.count
             }
+
+            writeStatusFile(runID: runID, goal: goal, step: stepCount, maxSteps: maxSteps,
+                            lastPlan: plans.last, elementCount: worldModel.currentSnapshot.elements.count,
+                            stuck: evalStuck, status: "running")
         }
 
+        writeStatusFile(runID: runID, goal: goal, step: stepCount, maxSteps: maxSteps,
+                        lastPlan: actionHistory.last, elementCount: 0, stuck: false, status: "failed")
         return OrchestratorResult(
             succeeded: false,
             stepsExecuted: stepCount,
@@ -356,27 +502,48 @@ public actor TaskOrchestrator {
         switch plan.action.lowercased() {
         case "click", "press", "tap":
             fputs("[orchestrator]   vision-click '\(plan.elementSelector)' at (\(x),\(y))\n", stderr)
-            executor.click(at: point)
+            if let vnc = vncClient {
+                // VNC PointerEvent — preferred, works at display framebuffer level
+                let physical = coordMapper?.logicalToPhysical(point) ?? point
+                await vnc.click(x: Int(physical.x), y: Int(physical.y))
+            } else {
+                executor.click(at: point)
+            }
 
         case "type", "input", "fill":
             fputs("[orchestrator]   vision-click+type '\(plan.elementSelector)' at (\(x),\(y))\n", stderr)
-            executor.click(at: point)
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            if let value = plan.value, !value.isEmpty {
-                await typeText(value)
-                // Press Enter to submit forms/URL bar
-                postKeyEvent(36)  // Return key
+            if let vnc = vncClient {
+                let physical = coordMapper?.logicalToPhysical(point) ?? point
+                await vnc.click(x: Int(physical.x), y: Int(physical.y))
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if let value = plan.value, !value.isEmpty {
+                    await vnc.typeText(value)
+                    await vnc.pressKey(0xFF0D, down: true)   // RFB XK_Return keysym
+                    await vnc.pressKey(0xFF0D, down: false)
+                }
+            } else {
+                executor.click(at: point)
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if let value = plan.value, !value.isEmpty {
+                    await typeText(value)
+                    postKeyEvent(36)
+                }
             }
 
         case "scroll":
             let direction = plan.value?.lowercased() ?? "down"
-            let key: CGKeyCode = direction == "up" ? 126 : 125
             fputs("[orchestrator]   vision-scroll \(direction) at (\(x),\(y))\n", stderr)
-            // Move to scroll area first, then scroll
-            executor.click(at: point)
-            try? await Task.sleep(nanoseconds: 100_000_000)
-            for _ in 0..<5 { postKeyEvent(key) }
-            
+            if let vnc = vncClient {
+                let physical = coordMapper?.logicalToPhysical(point) ?? point
+                let dir: ScrollDirection = direction == "up" ? .up : .down
+                await vnc.scroll(x: Int(physical.x), y: Int(physical.y), direction: dir, amount: 5)
+            } else {
+                let key: CGKeyCode = direction == "up" ? 126 : 125
+                executor.click(at: point)
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                for _ in 0..<5 { postKeyEvent(key) }
+            }
+
         case "wait":
             fputs("[orchestrator]   wait 2 seconds...\n", stderr)
             try? await Task.sleep(nanoseconds: 2_000_000_000)

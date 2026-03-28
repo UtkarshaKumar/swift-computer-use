@@ -45,6 +45,14 @@ public final class LearnedRulesStore: @unchecked Sendable {
         );
         CREATE INDEX IF NOT EXISTS idx_eval ON learned_rules(targetBundleID, intentType);
         CREATE INDEX IF NOT EXISTS idx_gc ON learned_rules(lastUsedAt, successCount);
+        CREATE TABLE IF NOT EXISTS learned_workflows (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            goal TEXT NOT NULL,
+            steps_json TEXT NOT NULL,
+            created_at REAL NOT NULL,
+            success_count INTEGER NOT NULL DEFAULT 1
+        );
         """
         if sqlite3_exec(db, query, nil, nil, nil) != SQLITE_OK {
             fputs("[LearnedRulesStore] Failed to create JSON schema\n", stderr)
@@ -164,7 +172,7 @@ public final class LearnedRulesStore: @unchecked Sendable {
     private func updateRule(id: String, rule: LearnedRule) {
         guard let data = try? JSONEncoder().encode(rule),
               let jsonString = String(data: data, encoding: .utf8) else { return }
-              
+
         let query = "UPDATE learned_rules SET successCount = ?, lastUsedAt = ?, json_data = ? WHERE id = ?"
         var stmt: OpaquePointer?
         if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
@@ -175,6 +183,70 @@ public final class LearnedRulesStore: @unchecked Sendable {
             sqlite3_step(stmt)
         }
         sqlite3_finalize(stmt)
+    }
+
+    // MARK: - Workflows
+
+    /// Persist a LearnedWorkflow. Replaces any existing workflow with the same name.
+    public func saveWorkflow(_ workflow: LearnedWorkflow) throws {
+        let stepsJSON = try JSONEncoder().encode(workflow.steps)
+        let stepsString = String(data: stepsJSON, encoding: .utf8) ?? "[]"
+
+        queue.async { [weak self] in
+            guard let self = self, let db = self.db else { return }
+
+            let query = "INSERT OR REPLACE INTO learned_workflows (id, name, goal, steps_json, created_at, success_count) VALUES (?, ?, ?, ?, ?, ?)"
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
+                sqlite3_bind_text(stmt, 1, (workflow.id.uuidString as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(stmt, 2, (workflow.name as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(stmt, 3, (workflow.goal as NSString).utf8String, -1, nil)
+                sqlite3_bind_text(stmt, 4, (stepsString as NSString).utf8String, -1, nil)
+                sqlite3_bind_double(stmt, 5, workflow.createdAt.timeIntervalSince1970)
+                sqlite3_bind_int(stmt, 6, Int32(workflow.successCount))
+                sqlite3_step(stmt)
+            }
+            sqlite3_finalize(stmt)
+        }
+    }
+
+    /// Load all saved workflows, ordered by success_count DESC.
+    public func loadWorkflows() throws -> [LearnedWorkflow] {
+        var workflows = [LearnedWorkflow]()
+        queue.sync {
+            let query = "SELECT id, name, goal, steps_json, created_at, success_count FROM learned_workflows ORDER BY success_count DESC"
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK {
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    if let cId = sqlite3_column_text(stmt, 0),
+                       let cName = sqlite3_column_text(stmt, 1),
+                       let cGoal = sqlite3_column_text(stmt, 2),
+                       let cStepsJson = sqlite3_column_text(stmt, 3) {
+                        let id = UUID(uuidString: String(cString: cId)) ?? UUID()
+                        let name = String(cString: cName)
+                        let goal = String(cString: cGoal)
+                        let stepsJsonString = String(cString: cStepsJson)
+                        let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 4))
+                        let successCount = Int(sqlite3_column_int(stmt, 5))
+
+                        if let stepsData = stepsJsonString.data(using: .utf8),
+                           let steps = try? JSONDecoder().decode([LearnedWorkflowStep].self, from: stepsData) {
+                            let workflow = LearnedWorkflow(
+                                id: id,
+                                name: name,
+                                goal: goal,
+                                steps: steps,
+                                createdAt: createdAt,
+                                successCount: successCount
+                            )
+                            workflows.append(workflow)
+                        }
+                    }
+                }
+            }
+            sqlite3_finalize(stmt)
+        }
+        return workflows
     }
 }
 

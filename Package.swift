@@ -26,6 +26,7 @@ let package = Package(
         .executable(name: "sdd-daemon", targets: ["SDD"]),
         .executable(name: "sdd-grpc",   targets: ["SDDGRPCServer"]),
         .executable(name: "sdd",        targets: ["SDDCLI"]),
+        .executable(name: "sdd-mcp", targets: ["SDDMCP"]),
         .library(name: "SDDCore",       targets: ["SDDCore"]),
         .library(name: "SDDBrain",      targets: ["SDDBrain"]),
     ],
@@ -109,6 +110,21 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("ApplicationServices"),
                 .linkedFramework("AppKit"),
+            ]
+        ),
+
+        // MARK: - SDDMCP (MCP server)
+        // JSON-RPC 2.0 stdio MCP server exposing 12 SDD tools to Claude.
+        // Now a real executor with SDDCore/SDDBrain dependencies.
+        // Communicates with the running sdd process via ~/.sdd/ state files.
+        .executableTarget(
+            name: "SDDMCP",
+            dependencies: ["SDDCore", "SDDBrain"],
+            path: "Sources/SDDMCP",
+            linkerSettings: [
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AppKit"),
+                .linkedFramework("ScreenCaptureKit"),
             ]
         ),
 

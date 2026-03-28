@@ -162,3 +162,46 @@ public struct LearnedRule: Codable, Sendable {
         self.intentType == intentType
     }
 }
+
+// MARK: - Sequential Workflow types
+
+/// One step in a recorded workflow sequence.
+public struct LearnedWorkflowStep: Sendable, Codable {
+    public let stepIndex: Int
+    public let elementRole: String
+    public let elementLabel: String
+    public let action: String          // "press" | "setValue"
+    public let value: String           // empty string for press actions
+    public let bundleID: String
+
+    public init(stepIndex: Int, elementRole: String, elementLabel: String,
+                action: String, value: String, bundleID: String) {
+        self.stepIndex = stepIndex
+        self.elementRole = elementRole
+        self.elementLabel = elementLabel
+        self.action = action
+        self.value = value
+        self.bundleID = bundleID
+    }
+}
+
+/// An ordered sequence of UI steps that accomplishes a named goal.
+public struct LearnedWorkflow: Sendable, Codable {
+    public let id: UUID
+    public let name: String
+    public let goal: String
+    public let steps: [LearnedWorkflowStep]
+    public let createdAt: Date
+    public var successCount: Int
+
+    public init(id: UUID = UUID(), name: String, goal: String,
+                steps: [LearnedWorkflowStep], createdAt: Date = Date(),
+                successCount: Int = 1) {
+        self.id = id
+        self.name = name
+        self.goal = goal
+        self.steps = steps
+        self.createdAt = createdAt
+        self.successCount = successCount
+    }
+}

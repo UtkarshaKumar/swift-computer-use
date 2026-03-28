@@ -24,21 +24,21 @@ public class DemonstrationRecorder {
         // 1. Monitor Left Mouse Up (Click)
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: .leftMouseUp) { [weak self] event in
             guard let self = self else { return }
-            
+
             // If the user previously typed something before clicking elsewhere, extract a typeRule first.
             self.flushTypeBuffer()
-            
+
             let nsLoc = event.locationInWindow
             // Convert to CoreGraphics screen space
             guard let screen = NSScreen.screens.first else { return }
             let cgLoc = CGPoint(x: nsLoc.x, y: screen.frame.height - nsLoc.y)
-            
+
             var elementRef: AXUIElement? = nil
             let err = AXUIElementCopyElementAtPosition(systemWide, Float(cgLoc.x), Float(cgLoc.y), &elementRef)
-            
+
             guard err == .success, let axElement = elementRef else { return }
-            
-            // Extract role and label
+
+            // Extract role and label (AX calls are safe on any thread)
             var roleRef: CFTypeRef?
             var labelRef: CFTypeRef?
             AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &roleRef)
@@ -46,14 +46,19 @@ public class DemonstrationRecorder {
             if labelRef == nil {
                 AXUIElementCopyAttributeValue(axElement, kAXDescriptionAttribute as CFString, &labelRef)
             }
-            
+
             let role = (roleRef as? String) ?? "AXUnknown"
             let label = (labelRef as? String) ?? ""
-            
+
             // We only care about interactive elements (ignoring pure text overlays unless they're buttons/links)
-            if role == "AXButton" || role == "AXLink" || role == "AXMenuItem" || role == "AXTextField" || role == "AXStaticText" {
+            guard role == "AXButton" || role == "AXLink" || role == "AXMenuItem"
+                    || role == "AXTextField" || role == "AXStaticText" else { return }
+
+            // NSWorkspace.shared must be accessed on the main thread.
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
                 let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
-                
+
                 let rule = LearnedRule(
                     id: UUID(),
                     createdAt: Date(),
@@ -64,9 +69,8 @@ public class DemonstrationRecorder {
                     labelMatchType: .caseInsensitive,
                     intentType: .pressButton,
                     resolvedAction: .press(targetRole: role, targetLabel: label),
-                    confidence: 1.0 // 100% confidence because the user physically demonstrated it
+                    confidence: 1.0 // 100% confidence — user physically demonstrated it
                 )
-                
                 self.onRuleExtracted?(rule)
             }
         }
@@ -90,25 +94,33 @@ public class DemonstrationRecorder {
     
     private func flushTypeBuffer() {
         guard !currentTypeBuffer.isEmpty else { return }
-        
-        // Try to figure out what element we currently have focused
+
+        let bufferSnapshot = currentTypeBuffer
+        currentTypeBuffer = ""
+
+        // AX focused-element query — safe on any thread
         let systemWide = AXUIElementCreateSystemWide()
         var focusedElementRef: CFTypeRef?
         let err = AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElementRef)
-        
-        if err == .success, let axElement = focusedElementRef as! AXUIElement? {
-            var roleRef: CFTypeRef?
-            var titleRef: CFTypeRef?
-            AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &roleRef)
-            AXUIElementCopyAttributeValue(axElement, kAXTitleAttribute as CFString, &titleRef)
-            if titleRef == nil {
-                AXUIElementCopyAttributeValue(axElement, kAXDescriptionAttribute as CFString, &titleRef)
-            }
-            
-            let role = (roleRef as? String) ?? "AXTextField"
-            let label = (titleRef as? String) ?? "FocusedField"
+
+        guard err == .success, let axElement = focusedElementRef as! AXUIElement? else { return }
+
+        var roleRef: CFTypeRef?
+        var titleRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &roleRef)
+        AXUIElementCopyAttributeValue(axElement, kAXTitleAttribute as CFString, &titleRef)
+        if titleRef == nil {
+            AXUIElementCopyAttributeValue(axElement, kAXDescriptionAttribute as CFString, &titleRef)
+        }
+
+        let role  = (roleRef  as? String) ?? "AXTextField"
+        let label = (titleRef as? String) ?? "FocusedField"
+
+        // NSWorkspace.shared must run on the main thread
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
             let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "unknown"
-            
+
             let rule = LearnedRule(
                 id: UUID(),
                 createdAt: Date(),
@@ -118,14 +130,11 @@ public class DemonstrationRecorder {
                 elementLabelPattern: label,
                 labelMatchType: .caseInsensitive,
                 intentType: .typeValue,
-                resolvedAction: .setValue(targetRole: role, targetLabel: label, value: self.currentTypeBuffer),
+                resolvedAction: .setValue(targetRole: role, targetLabel: label, value: bufferSnapshot),
                 confidence: 1.0
             )
-            
             self.onRuleExtracted?(rule)
         }
-        
-        self.currentTypeBuffer = ""
     }
     
     public func stopRecording() {

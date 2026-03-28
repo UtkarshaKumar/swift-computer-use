@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import SDDCore
 
 /// Errors that can occur during slow brain routing.
@@ -157,6 +158,104 @@ public struct SlowBrainRouter: Sendable {
             worldModel: worldModel
         )
         return try parseActionPlan(from: response)
+    }
+
+    /// VNC + ShowUI-2B routing: separates planning (Claude text-only) from grounding (ShowUI local).
+    ///
+    /// Flow:
+    ///   1. Call Claude with TEXT-ONLY context (no screenshot) → get action + element_selector
+    ///   2. For each plan that needs coordinates: call ShowUI with vncFrame + element_selector
+    ///   3. Map ShowUI normalized (0–1) → physical pixels via coordMapper
+    ///   4. Return ActionPlans with x, y populated from ShowUI
+    ///   Fallback: if ShowUI unavailable → throw error (caller uses routeWithVision)
+    public func routeWithVNCAndShowUI(
+        goal: String,
+        vncFrame: Data,                        // JPEG from VNCClient.captureFrame()
+        showUIClient: ShowUIClient?,
+        coordMapper: QuartzCoordinateMapper?,
+        actionHistory: [ActionPlan] = [],
+        isStuck: Bool = false
+    ) async throws -> [ActionPlan] {
+        guard !config.localOnly else { throw SlowBrainError.localOnlyModeActive }
+
+        // Check ShowUI availability — if unavailable, signal caller to use vision path
+        let showUIAvailable = await showUIClient?.isAvailable() ?? false
+        if !showUIAvailable || showUIClient == nil {
+            fputs("[slow-brain] ShowUI unavailable — caller should use routeWithVision instead\n", stderr)
+            throw SlowBrainError.parsingFailed(NSError(domain: "SlowBrainRouter", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "ShowUI server unavailable — use routeWithVision"]))
+        }
+
+        // Step 1: Build text-only prompt (no screenshot sent to Claude)
+        let textPrompt = buildTextOnlyPrompt(
+            goal: goal,
+            actionHistory: actionHistory,
+            isStuck: isStuck
+        )
+
+        // Step 2: Call Claude TEXT-ONLY — ask what element/action to take
+        let planData = try await callWithRetry { [self] in
+            try await sendTextRequest(prompt: textPrompt)
+        }
+
+        // Parse the plans (Claude returns element_selector but x/y may be nil or 0)
+        var plans: [ActionPlan]
+        do {
+            plans = try parseActionPlan(from: planData)
+        } catch {
+            fputs("[slow-brain] VNC+ShowUI parse failed — falling back to vision\n", stderr)
+            throw SlowBrainError.parsingFailed(error as NSError)
+        }
+
+        // Step 3: For each plan needing coordinates, call ShowUI
+        var groundedPlans: [ActionPlan] = []
+        for plan in plans {
+            let actionLower = plan.action.lowercased()
+            let needsCoords = (actionLower == "click" || actionLower == "press" || actionLower == "tap"
+                               || actionLower == "type" || actionLower == "input" || actionLower == "fill"
+                               || actionLower == "scroll")
+
+            guard needsCoords,
+                  !plan.elementSelector.isEmpty,
+                  plan.elementSelector.lowercased() != "done"
+            else {
+                groundedPlans.append(plan)
+                continue
+            }
+
+            // Call ShowUI for coordinate grounding
+            if let result = await showUIClient!.ground(query: plan.elementSelector, imageJpeg: vncFrame),
+               result.confidence > 0.5 {
+                // Map ShowUI normalized (0–1) → physical pixel coordinates
+                let normalizedPoint = CGPoint(x: result.x, y: result.y)
+                let physicalPoint: CGPoint
+                if let mapper = coordMapper {
+                    physicalPoint = mapper.normalizedToPhysical(normalizedPoint)
+                } else {
+                    // No mapper: assume 1:1 display, multiply by common resolution
+                    let displayW = CGFloat(CGDisplayPixelsWide(CGMainDisplayID()))
+                    let displayH = CGFloat(CGDisplayPixelsHigh(CGMainDisplayID()))
+                    physicalPoint = CGPoint(x: normalizedPoint.x * displayW, y: normalizedPoint.y * displayH)
+                }
+                fputs("[slow-brain] ShowUI grounded '\(plan.elementSelector)' → (\(Int(physicalPoint.x)), \(Int(physicalPoint.y))) conf=\(String(format: "%.2f", result.confidence))\n", stderr)
+
+                // Rebuild ActionPlan with coordinates
+                let groundedPlan = ActionPlan(
+                    action: plan.action,
+                    elementSelector: plan.elementSelector,
+                    value: plan.value,
+                    verifyCondition: plan.verifyCondition,
+                    x: Int(physicalPoint.x),
+                    y: Int(physicalPoint.y)
+                )
+                groundedPlans.append(groundedPlan)
+            } else {
+                fputs("[slow-brain] ShowUI low-confidence for '\(plan.elementSelector)' — using ungrounded plan\n", stderr)
+                groundedPlans.append(plan)
+            }
+        }
+
+        return groundedPlans
     }
 
     // MARK: - Vision-only fallback (when AX serialization fails entirely)
@@ -508,6 +607,45 @@ public struct SlowBrainRouter: Sendable {
         Return ONLY one JSON action:
         [{"action":"click","element_selector":"Exact Label","value":null,"verify_condition":null}]
         Rules: action ∈ {click,type,scroll,done} · element_selector must match a label exactly · type needs value · scroll value="up"/"down" · done when goal complete
+        """
+    }
+
+    /// Builds a text-only prompt for Claude — no screenshot, no coordinates.
+    /// Claude returns element descriptions; ShowUI handles coordinate grounding separately.
+    private func buildTextOnlyPrompt(
+        goal: String,
+        actionHistory: [ActionPlan],
+        isStuck: Bool
+    ) -> String {
+        let historyContext: String
+        if !actionHistory.isEmpty {
+            let lines = actionHistory.suffix(5).map { p in
+                let coords = p.x.map { x in p.y.map { y in " at (\(x),\(y))" } ?? "" } ?? ""
+                return "  - \(p.action) '\(p.elementSelector)'\(coords)"
+            }
+            historyContext = "\n\nPREVIOUS ACTIONS (most recent last):\n" + lines.joined(separator: "\n")
+        } else {
+            historyContext = ""
+        }
+
+        let stuckWarning = isStuck ? """
+        \n\nWARNING: The previous action did NOT change the UI or is repeating in a loop.
+        You MUST try a completely different element or action type.
+        """ : ""
+
+        return """
+        You are a macOS computer-use agent. The screen is not visible to you — describe elements by their visible label or role.
+
+        GOAL: \(goal)\(historyContext)\(stuckWarning)
+
+        What is the SINGLE NEXT ACTION to take? Return ONLY a JSON array with one action.
+        Use descriptive element_selector text (e.g. "Easy Apply button", "Phone number field").
+        Do NOT include x or y coordinates — a separate vision model will locate the element.
+
+        [{"action":"click","element_selector":"Easy Apply button","value":null,"verify_condition":null,"x":0,"y":0}]
+
+        Actions: click, type (include value), scroll (value: up/down), key (value: Return/Escape/Tab), wait, done.
+        Return ONLY the JSON array.
         """
     }
 

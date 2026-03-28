@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchDaemon property list for the Semantic Display Daemon.
+
+  Install path: /Library/LaunchDaemons/com.sdd.daemon.plist
+  Binary path:  /usr/local/bin/sdd
+
+  To load:   sudo launchctl load /Library/LaunchDaemons/com.sdd.daemon.plist
+  To unload: sudo launchctl unload /Library/LaunchDaemons/com.sdd.daemon.plist
+  Status:    sudo launchctl list | grep sdd
+-->
+<plist version="1.0">
+<dict>
+    <!-- Service identity -->
+    <key>Label</key>
+    <string>com.sdd.daemon</string>
+
+    <!-- Launch at system boot, restart on crash -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Daemon binary -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/sdd</string>
+    </array>
+
+    <!-- Standard I/O — stderr goes to system log for `log stream --predicate 'process == "sdd"'` -->
+    <key>StandardErrorPath</key>
+    <string>/var/log/sdd/sdd.log</string>
+
+    <!-- Nice value: daemon is latency-sensitive, don't throttle it -->
+    <key>Nice</key>
+    <integer>-5</integer>
+
+    <!-- Disable throttling on rapid restarts (e.g., during development) -->
+    <key>ThrottleInterval</key>
+    <integer>1</integer>
+
+    <!--
+      macOS Permissions Required:
+        - Accessibility:     AXUIElement read/write, AXObserver, CGEvent tap
+        - Screen Recording:  ScreenCaptureKit frame capture (Phase 2)
+        - Input Monitoring:  CGEvent keyboard/mouse monitoring (Phase 3)
+
+      These must be granted manually in:
+        System Settings → Privacy & Security → [permission type]
+
+      The daemon binary must be code-signed with the entitlements in SDD.entitlements.
+    -->
+</dict>
+</plist>

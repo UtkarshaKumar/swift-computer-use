@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Code-signing entitlements for the Semantic Display Daemon.
+
+  All entitlements use public Apple APIs only — no private frameworks.
+  This binary is notarizable without a special provisioning profile.
+
+  Sign with:
+    codesign --force --options runtime --entitlements SDD.entitlements \
+             --sign "Developer ID Application: <name>" /usr/local/bin/sdd
+-->
+<plist version="1.0">
+<dict>
+    <!-- Hardened Runtime — required for notarization -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <false/>
+
+    <!--
+      Accessibility API (AXUIElement, AXObserver, CGEvent tap).
+      User must additionally grant "Accessibility" in Privacy & Security settings.
+    -->
+    <key>com.apple.security.temporary-exception.accessibility</key>
+    <true/>
+
+    <!--
+      CGEvent tap for keyboard/mouse monitoring (Phase 3 — Input Monitoring).
+      Commented out for Phase 1 — uncomment when implementing the input layer.
+    -->
+    <!-- <key>com.apple.security.temporary-exception.apple-events</key>
+    <true/> -->
+
+    <!--
+      ScreenCaptureKit requires Screen Recording permission.
+      The entitlement is a user-granted TCC permission, not a code-signing key.
+      No entitlement key needed here — the permission is granted in System Settings.
+    -->
+</dict>
+</plist>

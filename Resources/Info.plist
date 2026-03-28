@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.sdd.daemon</string>
+
+    <key>CFBundleName</key>
+    <string>Semantic Display Daemon</string>
+
+    <key>CFBundleShortVersionString</key>
+    <string>0.1.0</string>
+
+    <key>CFBundleVersion</key>
+    <string>1</string>
+
+    <key>CFBundleExecutable</key>
+    <string>sdd</string>
+
+    <key>CFBundlePackageType</key>
+    <string>TOOL</string>
+
+    <!-- macOS 13.0 minimum for stable ScreenCaptureKit + AX APIs -->
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+
+    <!-- No UI — background-only daemon -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Semantic Display Daemon contributors</string>
+
+    <!--
+      Privacy usage strings shown in System Settings permission prompts.
+      Required for notarization.
+    -->
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Semantic Display Daemon uses Accessibility to observe UI element changes and execute precise UI actions without coordinate guessing.</string>
+
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Semantic Display Daemon uses Screen Recording to capture the display for visual context alongside the accessibility tree.</string>
+
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>Semantic Display Daemon uses Input Monitoring to observe keyboard and mouse events for action verification.</string>
+</dict>
+</plist>

@@ -6,13 +6,13 @@ import Foundation
 /// All actions target an AX element handle — no coordinates.
 public enum ResolvedAction: Sendable {
     /// Set the value of a text field or combo box (maps to AXSetValue).
-    case setValue(element: UIElement, value: String)
+    case setValue(element: FBElement, value: String)
 
     /// Activate a button, checkbox, or link (maps to AXPress).
-    case press(element: UIElement)
+    case press(element: FBElement)
 
     /// Scroll within a scrollable container (maps to AXScroll / AXScrollToVisible).
-    case scroll(element: UIElement, direction: ScrollDirection, amount: Int)
+    case scroll(element: FBElement, direction: ScrollDirection, amount: Int)
 }
 
 // MARK: - UncertaintySignal
@@ -21,7 +21,7 @@ public enum ResolvedAction: Sendable {
 /// The SlowBrain router receives this and forwards to the LLM endpoint.
 public struct UncertaintySignal: Sendable {
     /// The snapshot that was evaluated.
-    public let snapshot: WorldModelSnapshot
+    public let snapshot: FBSnapshot
     /// The task that could not be resolved confidently.
     public let task: TaskContext
     /// The best confidence score produced by any rule (may be 0.0 if no rule matched).
@@ -30,7 +30,7 @@ public struct UncertaintySignal: Sendable {
     public let reason: String
 
     public init(
-        snapshot: WorldModelSnapshot,
+        snapshot: FBSnapshot,
         task: TaskContext,
         confidence: Double,
         reason: String

@@ -4,10 +4,10 @@ import ApplicationServices
 // MARK: - Protocol Definition
 
 /// ActionExecutor protocol based on INTERFACE_SPEC.md requirements.
-public protocol ActionExecutorProtocol {
+public protocol AXActionExecutorProtocol {
     /// Executes the specified action on a UI element.
     /// Returns a synchronous verify signal, waiting up to 50ms for WorldModel confirmation.
-    func execute(_ action: Action, on element: UIElement) async throws -> VerifySignal
+    func execute(_ action: Action, on element: AXElement) async throws -> AXVerifySignal
     
     /// Tracks the number of coordinate-based actions (EVAL-SYS-004).
     var coordinateActionCount: Int { get }
@@ -23,7 +23,7 @@ public enum Action: Equatable {
 }
 
 /// Lightweight wrapper around AXUIElement with SDD metadata.
-public struct UIElement {
+public struct AXElement {
     public let axElement: AXUIElement
     public let isCanvasRegion: Bool
     public let frame: CGRect
@@ -38,14 +38,14 @@ public struct UIElement {
 }
 
 /// Synchronous verify signal confirming the outcome of an action.
-public struct VerifySignal {
+public struct AXVerifySignal {
     public let success: Bool
     public let timestamp: Date
     public let details: String?
 }
 
 /// Errors occurring during action execution.
-public enum ActionError: Error {
+public enum AXActionError: Error {
     case timeout(String)
     case axError(AXError)
     case invalidActionForElement(String)
@@ -55,17 +55,17 @@ public enum ActionError: Error {
 // MARK: - Implementation
 
 /// Core implementation of the SDD ActionExecutor.
-public class ActionExecutor: ActionExecutorProtocol {
+public class AXActionExecutor: AXActionExecutorProtocol {
     /// Track coordinate actions for performance evaluation (EVAL-SYS-004).
     private(set) public var coordinateActionCount: Int = 0
     
     /// Notification hook for the WorldModel to verify state changes.
-    public var onWorldModelUpdate: (() async -> Bool)?
+    public var onWorldModelUpdate: (@Sendable () async -> Bool)?
     
     public init() {}
     
     /// Primary execution loop.
-    public func execute(_ action: Action, on element: UIElement) async throws -> VerifySignal {
+    public func execute(_ action: Action, on element: AXElement) async throws -> AXVerifySignal {
         let startTime = Date()
         
         // Phase 1: Dispatch action
@@ -80,7 +80,7 @@ public class ActionExecutor: ActionExecutorProtocol {
             try performKeyboardShortcut(characters: characters, modifiers: modifiers)
         case .mouseClick(let point):
             guard element.isCanvasRegion else {
-                throw ActionError.invalidActionForElement("Coordinate clicks are strictly restricted to canvas regions.")
+                throw AXActionError.invalidActionForElement("Coordinate clicks are strictly restricted to canvas regions.")
             }
             try performMouseClick(at: point)
             coordinateActionCount += 1
@@ -94,17 +94,17 @@ public class ActionExecutor: ActionExecutorProtocol {
     
     private func performAXPress(on element: AXUIElement) throws {
         let result = AXUIElementPerformAction(element, kAXPressAction as CFString)
-        guard result == .success else { throw ActionError.axError(result) }
+        guard result == .success else { throw AXActionError.axError(result) }
     }
     
     private func performAXSetValue(_ value: String, on element: AXUIElement) throws {
         let result = AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, value as CFTypeRef)
-        guard result == .success else { throw ActionError.axError(result) }
+        guard result == .success else { throw AXActionError.axError(result) }
     }
     
     private func performAXSetFocused(_ focused: Bool, on element: AXUIElement) throws {
         let result = AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, focused as CFTypeRef)
-        guard result == .success else { throw ActionError.axError(result) }
+        guard result == .success else { throw AXActionError.axError(result) }
     }
     
     private func performKeyboardShortcut(characters: String, modifiers: CGEventFlags) throws {
@@ -137,14 +137,15 @@ public class ActionExecutor: ActionExecutorProtocol {
     
     // MARK: - Verification Logic
     
-    private func waitForVerification(startTime: Date) async throws -> VerifySignal {
+    private func waitForVerification(startTime: Date) async throws -> AXVerifySignal {
         let timeoutNanoseconds: UInt64 = 50 * 1_000_000 // 50ms
         
         // In this implementation, we check if WorldModel update happened within the window.
         // If no hook is provided, we simulate successful verification for the baseline.
+        let observer = self.onWorldModelUpdate  // capture before task group to avoid self capture
         let verified = await withTaskGroup(of: Bool.self) { group in
             group.addTask {
-                if let observer = self.onWorldModelUpdate {
+                if let observer = observer {
                     return await observer()
                 }
                 // Simulate fast propagation delay
@@ -165,22 +166,22 @@ public class ActionExecutor: ActionExecutorProtocol {
         }
         
         if verified {
-            return VerifySignal(success: true, timestamp: Date(), details: "WorldModel state change verified")
+            return AXVerifySignal(success: true, timestamp: Date(), details: "WorldModel state change verified")
         } else {
-            throw ActionError.timeout("Action execution timed out waiting for verify signal (>50ms)")
+            throw AXActionError.timeout("Action execution timed out waiting for verify signal (>50ms)")
         }
     }
 }
 
 // MARK: - File Dialog Support
 
-extension ActionExecutor {
+extension AXActionExecutor {
     /// Navigates a native macOS file dialog to a specified path via Accessibility.
     /// Requirements: [AX-based navigation of NSOpenPanel/NSSavePanel]
-    public func navigateFileDialog(to path: String, onDialog element: AXUIElement) async throws -> VerifySignal {
+    public func navigateFileDialog(to path: String, onDialog element: AXUIElement) async throws -> AXVerifySignal {
         // 1. Send Cmd+Shift+G to trigger the "Go to" sheet
         _ = try await execute(.keyboardShortcut(characters: "g", modifiers: [.maskCommand, .maskShift]), 
-                               on: UIElement(axElement: element))
+                               on: AXElement(axElement: element))
         
         // 2. Locate the "Go to folder" text field and set the path
         // In a real scenario, we'd wait for the world model to find the new sheet element.
@@ -189,7 +190,7 @@ extension ActionExecutor {
         // try await execute(.setValue(path), on: textField)
         // try await execute(.keyboardShortcut(characters: "\n", modifiers: []), on: textField)
         
-        return VerifySignal(success: true, timestamp: Date(), details: "File dialog navigation initiated via AX")
+        return AXVerifySignal(success: true, timestamp: Date(), details: "File dialog navigation initiated via AX")
     }
 }
 

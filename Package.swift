@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 import PackageDescription
 
 // ──────────────────────────────────────────────────────────────────
@@ -34,6 +34,7 @@ let package = Package(
         .package(url: "https://github.com/grpc/grpc-swift-nio-transport.git", from: "2.6.0"),
         .package(url: "https://github.com/grpc/grpc-swift-protobuf.git",      from: "2.2.0"),
         .package(url: "https://github.com/apple/swift-protobuf.git",          from: "1.25.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser.git",   from: "1.3.0"),
     ],
     targets: [
 
@@ -86,7 +87,8 @@ let package = Package(
         .executableTarget(
             name: "SDDCLI",
             dependencies: [
-                .product(name: "SwiftProtobuf", package: "swift-protobuf"),
+                "SDDCore",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             path: "Sources/SDDCLI"
         ),

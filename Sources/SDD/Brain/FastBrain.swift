@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import SDDCore
 
 // MARK: - RuleMatch
 
@@ -14,7 +15,7 @@ struct RuleMatch {
 /// A single pattern-match rule. Rules are stateless value types evaluated in priority order.
 /// Returning nil means "this rule does not apply"; the engine moves to the next rule.
 protocol FastBrainRule {
-    func evaluate(snapshot: WorldModelSnapshot, task: TaskContext) -> RuleMatch?
+    func evaluate(snapshot: FBSnapshot, task: TaskContext) -> RuleMatch?
 }
 
 // MARK: - Rule 1: FocusedFieldRule
@@ -28,12 +29,12 @@ struct FocusedFieldRule: FastBrainRule {
     ]
 
     @inline(__always)
-    func evaluate(snapshot: WorldModelSnapshot, task: TaskContext) -> RuleMatch? {
+    func evaluate(snapshot: FBSnapshot, task: TaskContext) -> RuleMatch? {
         guard case .typeValue(let targetLabel, let value) = task.intent else { return nil }
 
         // If targetLabel is specified, prefer a focused field with that label;
         // fall back to any focused text role if label is nil.
-        let candidate: UIElement?
+        let candidate: FBElement?
 
         if let label = targetLabel {
             // Try focused element with matching label first (most precise)
@@ -67,11 +68,11 @@ struct ButtonMatchRule: FastBrainRule {
     ]
 
     @inline(__always)
-    func evaluate(snapshot: WorldModelSnapshot, task: TaskContext) -> RuleMatch? {
+    func evaluate(snapshot: FBSnapshot, task: TaskContext) -> RuleMatch? {
         guard case .pressButton(let label) = task.intent else { return nil }
 
         struct Candidate {
-            let element: UIElement
+            let element: FBElement
             let confidence: Double
         }
 
@@ -125,7 +126,7 @@ struct ButtonMatchRule: FastBrainRule {
 ///   b) a `.pressButton` or `.typeValue` targeting an element that is below the fold
 struct ScrollRule: FastBrainRule {
     @inline(__always)
-    func evaluate(snapshot: WorldModelSnapshot, task: TaskContext) -> RuleMatch? {
+    func evaluate(snapshot: FBSnapshot, task: TaskContext) -> RuleMatch? {
         let viewport = snapshot.appContext.viewportFrame
 
         switch task.intent {
@@ -187,9 +188,9 @@ struct ScrollRule: FastBrainRule {
 
     private func resolveScrollTarget(
         label: String?,
-        elements: [UIElement],
+        elements: [FBElement],
         viewport: CGRect
-    ) -> UIElement? {
+    ) -> FBElement? {
         let scrollableRoles: Set<String> = ["AXScrollArea", "AXWebArea", "AXList", "AXTable"]
 
         if let label = label {
@@ -207,7 +208,7 @@ struct ScrollRule: FastBrainRule {
 
 /// Safety net — always fires with confidence 0.0, ensuring FastBrain never returns nil.
 struct NoMatchRule: FastBrainRule {
-    func evaluate(snapshot: WorldModelSnapshot, task: TaskContext) -> RuleMatch? {
+    func evaluate(snapshot: FBSnapshot, task: TaskContext) -> RuleMatch? {
         // Returns nil — FastBrain handles this case directly to produce UncertaintySignal
         return nil
     }
@@ -215,7 +216,7 @@ struct NoMatchRule: FastBrainRule {
 
 // MARK: - FastBrain
 
-/// The fast-path rule engine. Evaluates rules in priority order on a WorldModelSnapshot
+/// The fast-path rule engine. Evaluates rules in priority order on a FBSnapshot
 /// and returns either a resolved action or an UncertaintySignal for slow brain escalation.
 ///
 /// Performance contract: `evaluate` is pure in-memory with no AX API calls.
@@ -227,10 +228,14 @@ public struct FastBrain {
     public let confidenceThreshold: Double
 
     private let rules: [any FastBrainRule]
+    /// Learned rules injected at startup from LearnedRulesStore.
+    /// Evaluated BEFORE built-in rules — empirically proven patterns win.
+    private let learnedRules: [LearnedRule]
 
-    public init(confidenceThreshold: Double = 0.85) {
+    public init(confidenceThreshold: Double = 0.85, learnedRules: [LearnedRule] = []) {
         self.confidenceThreshold = confidenceThreshold
-        // Rules run in fixed priority order — see ADR-007
+        self.learnedRules = learnedRules
+        // Built-in rules run in fixed priority order — see ADR-007
         self.rules = [
             FocusedFieldRule(),
             ButtonMatchRule(),
@@ -240,27 +245,47 @@ public struct FastBrain {
     }
 
     /// Evaluate the current world model snapshot against the agent's task.
+    /// Learned rules are tried first (highest priority), then built-in rules.
     /// Returns `.action` if a rule matches with confidence ≥ threshold,
     /// otherwise `.uncertain` to trigger slow brain routing.
     public func evaluate(
-        snapshot: WorldModelSnapshot,
+        snapshot: FBSnapshot,
         task: TaskContext
     ) -> FastBrainResult {
         var bestConfidence = 0.0
         var bestMatch: RuleMatch?
+        var firedLearnedRuleID: UUID? = nil
 
-        for rule in rules {
-            if let match = rule.evaluate(snapshot: snapshot, task: task) {
+        // 1. Try learned rules first (empirically proven, highest priority)
+        for learned in learnedRules {
+            if let match = evaluateLearned(learned, snapshot: snapshot, task: task) {
                 if match.confidence > bestConfidence {
                     bestConfidence = match.confidence
                     bestMatch = match
+                    firedLearnedRuleID = learned.id
                 }
-                // Stop at first rule that produces a match (priority-ordered)
                 break
             }
         }
 
+        // 2. Fall back to built-in rules if no learned rule fired
+        if bestMatch == nil {
+            for rule in rules {
+                if let match = rule.evaluate(snapshot: snapshot, task: task) {
+                    if match.confidence > bestConfidence {
+                        bestConfidence = match.confidence
+                        bestMatch = match
+                    }
+                    break
+                }
+            }
+        }
+
         if let match = bestMatch, match.confidence >= confidenceThreshold {
+            // Async increment success count for learned rules (fire-and-forget)
+            if let lid = firedLearnedRuleID {
+                LearnedRulesStore.shared.incrementSuccess(id: lid)
+            }
             return .action(match.action, confidence: match.confidence)
         }
 
@@ -277,11 +302,61 @@ public struct FastBrain {
         ))
     }
 
+    // MARK: - Learned rule evaluation
+
+    private func evaluateLearned(
+        _ rule: LearnedRule,
+        snapshot: FBSnapshot,
+        task: TaskContext
+    ) -> RuleMatch? {
+        // App scope check (empty bundleID = any app)
+        if !rule.targetBundleID.isEmpty,
+           rule.targetBundleID != snapshot.appContext.bundleID { return nil }
+
+        // Intent type check
+        let taskIntentType: TaskIntentType
+        switch task.intent {
+        case .pressButton:  taskIntentType = .pressButton
+        case .typeValue:    taskIntentType = .typeValue
+        case .scroll:       taskIntentType = .scroll
+        case .custom:       return nil   // custom intents cannot be learned
+        }
+        guard rule.intentType == taskIntentType else { return nil }
+
+        // Find a matching element in the snapshot
+        guard let el = snapshot.elements.first(where: { el in
+            el.role == rule.elementRole &&
+            rule.labelMatches(el.label) &&
+            (!rule.requiresEnabled || el.isEnabled) &&
+            (!rule.requiresVisible || el.isVisible)
+        }) else { return nil }
+
+        // Build the ResolvedAction from the learned action pattern
+        let action: ResolvedAction
+        switch rule.resolvedAction {
+        case .press:
+            action = .press(element: el)
+        case .setValue(_, _, let value):
+            action = .setValue(element: el, value: value)
+        case .scroll(_, _, let dir, let amount):
+            let direction: ScrollDirection
+            switch dir {
+            case "up":    direction = .up
+            case "down":  direction = .down
+            case "left":  direction = .left
+            default:      direction = .right
+            }
+            action = .scroll(element: el, direction: direction, amount: amount)
+        }
+
+        return RuleMatch(action: action, confidence: rule.confidence)
+    }
+
     // MARK: - Private helpers
 
     private func buildEscalationReason(
         task: TaskContext,
-        snapshot: WorldModelSnapshot,
+        snapshot: FBSnapshot,
         bestConfidence: Double
     ) -> String {
         if bestConfidence == 0.0 {

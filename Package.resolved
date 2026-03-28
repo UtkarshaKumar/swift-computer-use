@@ -1,15 +1,6 @@
 {
-  "originHash" : "026bbd12639c7c8cf7de72089aa5872a7eeadac26f482657c4951961c7a033c7",
+  "originHash" : "c6603ec36b1385b5ac817da42bcc69a97073272e74f27e2c7e386b6d47e9bb86",
   "pins" : [
-    {
-      "identity" : "grpc-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/grpc/grpc-swift.git",
-      "state" : {
-        "revision" : "369172abf87d3c83ce4c66e1a23c95dfe021a4c6",
-        "version" : "2.2.1"
-      }
-    },
     {
       "identity" : "grpc-swift-2",
       "kind" : "remoteSourceControl",
@@ -33,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/grpc/grpc-swift-protobuf.git",
       "state" : {
-        "revision" : "bdbc8320f1fd14775062b47f41c262e6d2723296",
-        "version" : "1.0.0"
+        "revision" : "0b53365d87cb79aed6e9c509f947eb96ba0d3da6",
+        "version" : "2.2.1"
       }
     },
     {
@@ -44,6 +35,15 @@
       "state" : {
         "revision" : "87e50f483c54e6efd60e885f7f5aa946cee68023",
         "version" : "1.2.1"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser.git",
+      "state" : {
+        "revision" : "626b5b7b2f45e1b0b1c6f4a309296d1d21d7311b",
+        "version" : "1.7.1"
       }
     },
     {

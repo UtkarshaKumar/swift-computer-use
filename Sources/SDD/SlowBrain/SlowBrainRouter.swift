@@ -1,4 +1,5 @@
 import Foundation
+import SDDCore
 
 /// Errors that can occur during slow brain routing.
 public enum SlowBrainError: Error {
@@ -69,76 +70,61 @@ public struct SlowBrainRouter {
 
     // MARK: - Internal Implementation
 
-    /// Serializes the world model into a compact JSON context.
-    internal func serializeContext(from worldModel: WorldModel, expanded: Bool) throws -> Data {
+    /// Serializes a WorldModelSnapshot into a compact JSON context for the LLM.
+    /// Uses WorldModelProtocol.currentSnapshot — no Gemini-era custom methods.
+    internal func serializeContext(from snapshot: WorldModelSnapshot, expanded: Bool) throws -> Data {
         struct SerializedContext: Codable {
-            let current_app: String
-            let window_title: String
             let focused_element: FocusedElement?
             let interactive_elements: [CompactElement]
-            let history: [CompactAction]
-            let task: CompactTask?
-            
+
             struct FocusedElement: Codable {
                 let role: String
                 let label: String
                 let value: String?
-                let parent_chain: [String]
             }
-            
+
             struct CompactElement: Codable {
-                let r: String // role
-                let l: String // label
-                let v: String? // value (optional, only if expanded or important)
-            }
-            
-            struct CompactAction: Codable {
-                let a: String // action
-                let r: String // result
-            }
-            
-            struct CompactTask: Codable {
-                let objective: String
-                let steps: [String]
+                let r: String  // role
+                let l: String  // label
+                let v: String? // value (only in expanded mode)
             }
         }
 
-        // Focused element + parent chain (5 levels max)
+        // Focused element
         var focusedData: SerializedContext.FocusedElement?
-        if let focusedID = worldModel.focusedElementID, let element = worldModel.getElement(by: focusedID) {
-            let chain = worldModel.getParentChain(for: focusedID, maxDepth: 5).map { $0.role }
-            focusedData = .init(role: element.role, label: element.label, value: element.value, parent_chain: chain)
+        if let fid = snapshot.focusedElementID, let el = snapshot.elements[fid] {
+            focusedData = .init(
+                role: el.role.rawValue,
+                label: el.label ?? "",
+                value: el.value
+            )
         }
 
-        // Visible interactive elements (roles + labels only)
-        // Expanded mode might include values or more elements
-        let visibleElements = worldModel.getVisibleInteractiveElements()
-        let compactElements = visibleElements.map { 
-            SerializedContext.CompactElement(r: $0.role, l: $0.label, v: expanded ? $0.value : nil)
-        }
-
-        // Last 5 actions + results
-        let lastActions = worldModel.actionHistory.suffix(5).map {
-            SerializedContext.CompactAction(a: $0.action, r: $0.result)
-        }
-
-        // Active task + remaining steps
-        var compactTask: SerializedContext.CompactTask?
-        if let task = worldModel.activeTask {
-            compactTask = .init(objective: task.objective, steps: task.remainingSteps)
+        // Interactive elements: buttons, text fields, links, checkboxes
+        let interactiveRoles: Set<UIElementRole> = [
+            .button, .textField, .checkBox, .link, .menuItem, .comboBox, .popUpButton
+        ]
+        let interactive = snapshot.elements.values
+            .filter { interactiveRoles.contains($0.role) && $0.state.contains(.enabled) }
+            .sorted { ($0.label ?? "") < ($1.label ?? "") }
+        let compactElements = interactive.map {
+            SerializedContext.CompactElement(
+                r: $0.role.rawValue,
+                l: $0.label ?? "",
+                v: expanded ? $0.value : nil
+            )
         }
 
         let context = SerializedContext(
-            current_app: worldModel.currentApp,
-            window_title: worldModel.activeWindowTitle,
             focused_element: focusedData,
-            interactive_elements: compactElements,
-            history: lastActions,
-            task: compactTask
+            interactive_elements: compactElements
         )
+        return try JSONEncoder().encode(context)
+    }
 
-        let encoder = JSONEncoder()
-        return try encoder.encode(context)
+    /// Overload accepting a live WorldModel — snapshots internally.
+    internal func serializeContext(from worldModel: WorldModel, expanded: Bool) throws -> Data {
+        try serializeContext(from: worldModel.currentSnapshot, expanded: expanded)
     }
 
     /// Communicates with the configured LLM endpoint.

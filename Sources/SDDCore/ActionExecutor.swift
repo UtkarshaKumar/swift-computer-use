@@ -19,12 +19,12 @@ public enum ActionExecutionPath {
     case fileDialog
 }
 
-/// Result of an action execution
-public struct ActionResult {
+/// Simple logging-level action result (distinct from ActionExecutorProtocol.ActionResult).
+public struct SDDActionResult: Sendable {
     public let success: Bool
     public let latencyMs: Int
     public let error: String?
-    
+
     public init(success: Bool, latencyMs: Int, error: String? = nil) {
         self.success = success
         self.latencyMs = latencyMs
@@ -32,9 +32,11 @@ public struct ActionResult {
     }
 }
 
-/// Executes UI actions and logs results
-public actor ActionExecutor {
-    public static let shared = ActionExecutor()
+/// High-level executor that wraps actions with ActionLogger integration.
+/// Renamed from ActionExecutor to SDDExecutor to avoid conflict with
+/// the ActionExecutorProtocol implementation in Sources/SDD/.
+public actor SDDExecutor {
+    public static let shared = SDDExecutor()
     
     private let logger: ActionLogger
     
@@ -48,7 +50,7 @@ public actor ActionExecutor {
         elementLabel: String?,
         element: AXUIElement?,
         path: ActionExecutionPath = .accessibility
-    ) async -> ActionResult {
+    ) async -> SDDActionResult {
         let startTime = Date()
         
         do {
@@ -63,7 +65,7 @@ public actor ActionExecutor {
             )
             return result
         } catch {
-            let result = ActionResult(
+            let result = SDDActionResult(
                 success: false,
                 latencyMs: Int(Date().timeIntervalSince(startTime) * 1000),
                 error: error.localizedDescription
@@ -87,7 +89,7 @@ public actor ActionExecutor {
         element: AXUIElement?,
         value: String,
         path: ActionExecutionPath = .accessibility
-    ) async -> ActionResult {
+    ) async -> SDDActionResult {
         let startTime = Date()
         
         do {
@@ -102,7 +104,7 @@ public actor ActionExecutor {
             )
             return result
         } catch {
-            let result = ActionResult(
+            let result = SDDActionResult(
                 success: false,
                 latencyMs: Int(Date().timeIntervalSince(startTime) * 1000),
                 error: error.localizedDescription
@@ -124,9 +126,9 @@ public actor ActionExecutor {
         elementId: String?,
         elementLabel: String?,
         element: AXUIElement?,
-        direction: ScrollDirection,
+        direction: SDDScrollDirection,
         path: ActionExecutionPath = .accessibility
-    ) async -> ActionResult {
+    ) async -> SDDActionResult {
         let startTime = Date()
         
         do {
@@ -141,7 +143,7 @@ public actor ActionExecutor {
             )
             return result
         } catch {
-            let result = ActionResult(
+            let result = SDDActionResult(
                 success: false,
                 latencyMs: Int(Date().timeIntervalSince(startTime) * 1000),
                 error: error.localizedDescription
@@ -162,7 +164,7 @@ public actor ActionExecutor {
     public func keyCombo(
         keys: [String],
         path: ActionExecutionPath = .keyboardInjection
-    ) async -> ActionResult {
+    ) async -> SDDActionResult {
         let startTime = Date()
         
         do {
@@ -177,7 +179,7 @@ public actor ActionExecutor {
             )
             return result
         } catch {
-            let result = ActionResult(
+            let result = SDDActionResult(
                 success: false,
                 latencyMs: Int(Date().timeIntervalSince(startTime) * 1000),
                 error: error.localizedDescription
@@ -200,9 +202,10 @@ public actor ActionExecutor {
         actionType: String,
         elementId: String?,
         elementLabel: String?,
-        result: ActionResult,
+        result: SDDActionResult,
         path: ActionExecutionPath,
-        startTime: Date
+        startTime: Date,
+        brainPath: String = "fast"
     ) async {
         let logEntry = ActionLog(
             timestamp: Date(),
@@ -212,6 +215,7 @@ public actor ActionExecutor {
             success: result.success,
             latencyMs: result.latencyMs,
             usedCoordinates: path == .canvasRegion,
+            brainPath: brainPath,
             error: result.error
         )
         
@@ -223,7 +227,7 @@ public actor ActionExecutor {
         }
     }
     
-    private func performClick(element: AXUIElement?, path: ActionExecutionPath) async throws -> ActionResult {
+    private func performClick(element: AXUIElement?, path: ActionExecutionPath) async throws -> SDDActionResult {
         let startTime = Date()
         
         // Simulate verify signal (in real implementation, this would wait for world model update)
@@ -235,38 +239,40 @@ public actor ActionExecutor {
         // 3. Return result
         
         let latency = Int(Date().timeIntervalSince(startTime) * 1000)
-        return ActionResult(success: true, latencyMs: latency)
+        return SDDActionResult(success: true, latencyMs: latency)
     }
     
-    private func performType(element: AXUIElement?, value: String, path: ActionExecutionPath) async throws -> ActionResult {
+    private func performType(element: AXUIElement?, value: String, path: ActionExecutionPath) async throws -> SDDActionResult {
         let startTime = Date()
         
         try await Task.sleep(nanoseconds: 10_000_000) // 10ms simulated verify
         
         let latency = Int(Date().timeIntervalSince(startTime) * 1000)
-        return ActionResult(success: true, latencyMs: latency)
+        return SDDActionResult(success: true, latencyMs: latency)
     }
     
-    private func performScroll(element: AXUIElement?, direction: ScrollDirection, path: ActionExecutionPath) async throws -> ActionResult {
+    private func performScroll(element: AXUIElement?, direction: SDDScrollDirection, path: ActionExecutionPath) async throws -> SDDActionResult {
         let startTime = Date()
         
         try await Task.sleep(nanoseconds: 10_000_000) // 10ms simulated verify
         
         let latency = Int(Date().timeIntervalSince(startTime) * 1000)
-        return ActionResult(success: true, latencyMs: latency)
+        return SDDActionResult(success: true, latencyMs: latency)
     }
     
-    private func performKeyCombo(keys: [String]) async throws -> ActionResult {
+    private func performKeyCombo(keys: [String]) async throws -> SDDActionResult {
         let startTime = Date()
         
         try await Task.sleep(nanoseconds: 10_000_000) // 10ms simulated verify
         
         let latency = Int(Date().timeIntervalSince(startTime) * 1000)
-        return ActionResult(success: true, latencyMs: latency)
+        return SDDActionResult(success: true, latencyMs: latency)
     }
 }
 
-public enum ScrollDirection: String {
+/// Scroll directions for SDDExecutor logging methods.
+/// Distinct from SDD.ScrollDirection (in Brain/TaskContext.swift) which is Sendable.
+public enum SDDScrollDirection: String {
     case up
     case down
     case left
@@ -274,7 +280,7 @@ public enum ScrollDirection: String {
 }
 
 // Helper for printing to stderr
-fileprivate var stderr = FileHandle.standardError
+fileprivate nonisolated(unsafe) var stderr = FileHandle.standardError
 
 fileprivate extension FileHandle {
     func write(_ string: String) {

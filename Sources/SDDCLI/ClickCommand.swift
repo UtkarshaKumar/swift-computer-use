@@ -27,7 +27,7 @@ struct ClickCommand: AsyncParsableCommand {
         // Initialize logger
         try await ActionLogger.shared.initialize()
         
-        let executor = ActionExecutor.shared
+        let executor = SDDExecutor.shared
         let path: ActionExecutionPath = useCoordinates ? .canvasRegion : .accessibility
         
         let result = await executor.click(

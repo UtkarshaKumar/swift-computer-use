@@ -125,6 +125,12 @@ public class AXActionExecutor: AXActionExecutorProtocol, @unchecked Sendable {
         }
     }
     
+    /// Click at a screen coordinate without the canvas-region guard.
+    /// Use this for web content where kAXPressAction doesn't work.
+    public func click(at point: CGPoint) {
+        try? performMouseClick(at: point)
+    }
+
     private func performMouseClick(at point: CGPoint) throws {
         let source = CGEventSource(stateID: .combinedSessionState)
         

@@ -13,9 +13,13 @@ import ApplicationServices
 ///
 /// Thread safety: all mutation happens on `queue` (serial, QoS userInteractive).
 /// The event handler is called on that same queue.
-public final class AXObserverManager {
+public final class AXObserverManager: @unchecked Sendable {
 
     public init() {}
+
+    deinit {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+    }
 
     // MARK: - App-level vs window-level event split
     //
@@ -58,14 +62,22 @@ public final class AXObserverManager {
     public var eventHandler: ((AXEvent) -> Void)?
 
     /// Start observing all running regular-activation apps and any future launches.
+    /// Safe to call from any thread.
     public func start() {
-        // Seed existing apps
-        let running = NSWorkspace.shared.runningApplications
-        for app in running where app.activationPolicy == .regular {
-            registerApp(pid: app.processIdentifier)
+        // Capture the running app list on whichever thread we're on — NSWorkspace is thread-safe.
+        // Dispatch registration onto queue because registerApp requires .onQueue(queue).
+        let pids = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .map { $0.processIdentifier }
+
+        queue.async { [weak self] in
+            guard let self else { return }
+            for pid in pids {
+                self.registerApp(pid: pid)
+            }
         }
 
-        // Future launches
+        // Future launches — addObserver is thread-safe; delivery hops to queue inside the handlers.
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(handleAppLaunched(_:)),

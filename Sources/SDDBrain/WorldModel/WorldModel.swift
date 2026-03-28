@@ -155,6 +155,84 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
         diffQueue.sync { focusedID.flatMap { elements[$0] } }
     }
 
+    // MARK: - Proactive scan
+
+    /// Walk the AX tree for a running application without waiting for events.
+    ///
+    /// AX events only fire on *changes*. At startup, apps are already running and
+    /// their windows already exist — no `windowCreated` events will fire unless
+    /// something changes. This method reads the current state eagerly.
+    ///
+    /// Safe to call from any thread; dispatches internally to `diffQueue`.
+    public func scanApp(pid: pid_t) {
+        diffQueue.async { [weak self] in
+            guard let self else { return }
+            self._scanApp(pid: pid)
+        }
+    }
+
+    /// Wait for all pending `scanApp` dispatches to complete, then return.
+    /// Call this after a series of `scanApp` calls to know when the model is ready.
+    public func drainScanQueue() {
+        diffQueue.sync { /* barrier — all prior async work is done */ }
+    }
+
+    /// Query the system-wide AX API for the globally focused element and update focusedID.
+    /// Call this after `drainScanQueue()` so the element is already in the elements table.
+    public func captureFocus() {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focusedRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedRef) == .success,
+              let fr = focusedRef else { return }
+        let axFr = fr as! AXUIElement
+        let fid = UIElementID(axFr)
+        diffQueue.async { [weak self] in
+            guard let self else { return }
+            self.focusedID = fid
+            self.liveRefs[fid] = axFr
+            // Hydrate if not yet in the table
+            if self.elements[fid] == nil {
+                var pid: pid_t = 0
+                AXUIElementGetPid(axFr, &pid)
+                if let el = self.hydrate(axFr, pid: pid) {
+                    self.elements[fid] = el
+                }
+            }
+        }
+        diffQueue.sync {} // drain
+    }
+
+    private func _scanApp(pid: pid_t) {
+        let appElement = AXUIElementCreateApplication(pid)
+
+        // Enumerate windows
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let windows = windowsRef as? [AXUIElement], !windows.isEmpty
+        else { return }
+
+        var added: [UIElement] = []
+        for window in windows {
+            let newEls = walkTree(window, pid: pid)
+            for el in newEls where elements[el.id] == nil {
+                elements[el.id] = el
+                added.append(el)
+            }
+        }
+        trackedPIDs.insert(pid)
+
+        guard !added.isEmpty else { return }
+
+        // Emit a synthetic diff so subscribers (e.g. daemon logger) are notified
+        let event = AXEvent(notification: .windowCreated, elementRef: appElement)
+        let diff = WorldModelDiff(
+            added: added, updated: [], removed: [],
+            triggeringEvent: event,
+            focusedElementID: focusedID
+        )
+        for sub in subscribers { sub.handler(diff) }
+    }
+
     // MARK: - FBSnapshot builder (for FastBrain)
 
     /// Converts the current snapshot into the FBSnapshot shape FastBrain expects.
@@ -251,6 +329,41 @@ public final class WorldModel: WorldModelProtocol, @unchecked Sendable {
             }
         }
         return result
+    }
+
+    /// Returns the screen frame of the first element whose label matches.
+    /// Does NOT require liveRefs — uses the stored UIElement.frame directly.
+    /// Use this for coordinate-based clicking, which is stable across rescans.
+    ///
+    /// Match rules (in priority order):
+    ///   1. Exact match (case-insensitive)
+    ///   2. Element label contains the search target (substring, min 4 chars)
+    /// The reverse (target contains element label) is intentionally NOT checked
+    /// because it false-matches elements with short labels against any selector.
+    public func frameForElement(label: String) -> UIElementFrame? {
+        diffQueue.sync {
+            let target = label.lowercased()
+            guard !target.isEmpty else { return nil }
+
+            // Pass 1: exact match (case-insensitive)
+            if let exact = elements.values.first(where: {
+                ($0.label ?? "").lowercased() == target
+            }) {
+                return exact.frame
+            }
+
+            // Pass 2: element label contains the target (min 4 chars to avoid noise)
+            if target.count >= 4 {
+                if let substr = elements.values.first(where: {
+                    let elLabel = ($0.label ?? "").lowercased()
+                    return !elLabel.isEmpty && elLabel.contains(target)
+                }) {
+                    return substr.frame
+                }
+            }
+
+            return nil
+        }
     }
 
     /// Returns the live AXUIElement for the first element matching label + role.

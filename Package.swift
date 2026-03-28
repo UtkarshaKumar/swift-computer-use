@@ -63,6 +63,7 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("ApplicationServices"),
                 .linkedFramework("AppKit"),
+                .linkedFramework("ScreenCaptureKit"),
             ]
         ),
 

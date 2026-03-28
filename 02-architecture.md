@@ -169,6 +169,11 @@
 **Decision:** Fixed priority order: FocusedFieldRule → ButtonMatchRule → ScrollRule → NoMatchRule. First rule to produce a match wins; evaluation stops immediately. Ambiguity within ButtonMatchRule (multiple equal-confidence candidates) drops confidence to 0.60, which falls below the default threshold and forces slow brain escalation.
 **Consequences:** Most deterministic outcomes are at the top of the stack (focused field is unambiguous; exact button labels are unambiguous). Ambiguous cases are explicitly detected and escalated rather than guessed. The fixed order also bounds evaluation time: worst case is O(n) per rule × 3 rules = O(3n), well under 1ms for typical element counts.
 
+### ADR-008: Hybrid AX+Vision for SlowBrain
+**Context:** Real-world testing against Chrome/LinkedIn revealed that React-rendered web buttons do not appear in Chrome's AX tree. The AX tree exposes browser chrome (URL bar, toolbar, menu items) but not dynamic SPA content (Easy Apply button, form fields inside React iframes). Pure AX-based routing fails for EVAL-WEB-* and EVAL-FLOW-001 (job application). However, native macOS apps (Finder, System Settings, Terminal) have excellent AX coverage and do not benefit from vision overhead.
+**Decision:** SlowBrain uses a hybrid strategy. On every route() call: (1) serialize AX context from WorldModel snapshot, (2) count interactive elements, (3) if count ≥ `minAXElements` threshold (default: 3), use AX-only text path (fast, cheap), (4) if count < threshold, fall back to vision (screenshot + AX context combined). Vision path always includes whatever AX elements ARE available for supplemental signal.
+**Consequences:** Web/SPA automation works via screenshot+LLM coordinate extraction. Native macOS app automation stays fast with no unnecessary screenshot overhead. Vision path adds ~200ms latency (ScreenCaptureKit capture + JPEG encoding + base64). The threshold is configurable per deployment. ScreenCaptureKit is used for all screen capture — CGWindowListCreateImage and CGDisplayCreateImage are removed in macOS 15 and must never be used.
+
 ---
 
 ## Implementation Phases

@@ -44,5 +44,7 @@ Semantic Display Daemon/
 ## Common Mistakes to Avoid
 
 - Do not conflate the SDD (dumb sensor/actuator) with the brain layer — SDD is infrastructure
-- Do not use coordinate-based clicking in any implementation — always AX element handles
+- Do not use coordinate-based clicking for native macOS apps that have AX coverage — always AX element handles (ADR-004). Coordinate clicking is permitted only for canvas regions and vision-path web content (ADR-008)
 - Do not poll AXUIElement — use AXObserver event subscriptions
+- Do not use CGWindowListCreateImage or CGDisplayCreateImage — these APIs are removed in macOS 15. Use ScreenCaptureKit for all screen capture
+- SlowBrain must try AX context first before falling back to vision — never skip AX analysis (ADR-008)

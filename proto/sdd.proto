@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package sdd;
+
+service SDD {
+  rpc GetElementTree(GetElementTreeRequest) returns (ElementTree);
+  rpc ExecuteAction(ActionRequest) returns (ActionResult);
+  rpc StreamWorldState(StreamRequest) returns (stream WorldStateDiff);
+  rpc GetScreenshot(ScreenshotRequest) returns (Screenshot);
+}
+
+message GetElementTreeRequest {
+  string window_id = 1;
+  bool include_hidden = 2;
+}
+
+message ElementTree {
+  string root_element_id = 1;
+  repeated Element nodes = 2;
+}
+
+message Element {
+  string id = 1;
+  string role = 2;
+  string title = 3;
+  string value = 4;
+  string subrole = 5;
+  repeated string actions = 6;
+  Rect bounds = 7;
+  bool is_focused = 8;
+  bool is_enabled = 9;
+  string parent_id = 10;
+  repeated string child_ids = 11;
+  map<string, string> attributes = 12;
+}
+
+message Rect {
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+}
+
+message ActionRequest {
+  string action_id = 1;
+  string element_id = 2;
+  string action_type = 3;
+  string payload = 4;
+}
+
+message ActionResult {
+  bool success = 1;
+  string error_message = 2;
+  string element_id = 3;
+  int64 timestamp_ms = 4;
+}
+
+message StreamRequest {
+  repeated string window_ids = 1;
+  bool include_hidden = 2;
+}
+
+message WorldStateDiff {
+  int64 timestamp_ms = 1;
+  string window_id = 2;
+  repeated Element changed_elements = 3;
+  repeated string removed_element_ids = 4;
+  bool full_refresh = 5;
+}
+
+message ScreenshotRequest {
+  string window_id = 1;
+  string format = 2;
+  int32 quality = 3;
+}
+
+message Screenshot {
+  bytes data = 1;
+  string format = 2;
+  int32 width = 3;
+  int32 height = 4;
+  int64 timestamp_ms = 5;
+}

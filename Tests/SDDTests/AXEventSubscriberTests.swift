@@ -12,7 +12,7 @@ import ApplicationServices
 ///   1. Unit — exercises the dispatch logic with synthetic events (no AX required)
 ///   2. Integration — fires real AX events via a live NSWindow
 ///      (skipped automatically if Accessibility is not granted)
-final class AXEventSubscriberTests: XCTestCase {
+final class AXEventSubscriberTests: XCTestCase, @unchecked Sendable {
 
     // MARK: - Unit: routing logic
 
@@ -272,7 +272,7 @@ private extension AXEventSubscriberTests {
 
     /// Skip the test if Accessibility permission is not granted.
     func skipIfAccessibilityNotGranted() throws {
-        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: false] as CFDictionary
+        let options = ["AXTrustedCheckOptionPrompt": false] as CFDictionary
         guard AXIsProcessTrustedWithOptions(options) else {
             throw XCTSkip("Accessibility permission not granted — run with 'System Settings → Accessibility' permission for integration tests")
         }
@@ -290,18 +290,17 @@ private extension AXEventSubscriberTests {
     }
 
     /// Run a non-throwing block on the main thread (safe from test queues).
-    func runOnMain(_ block: () -> Void) {
+    func runOnMain(_ block: @Sendable () -> Void) {
         if Thread.isMainThread { block(); return }
         DispatchQueue.main.sync { block() }
     }
 
     /// Run a throwing block on the main thread and return its value.
     @discardableResult
-    func runOnMain<T>(_ block: () throws -> T) throws -> T {
+    func runOnMain<T: Sendable>(_ block: @Sendable () throws -> T) throws -> T {
         if Thread.isMainThread { return try block() }
-        var result: Result<T, Error>?
-        DispatchQueue.main.sync { result = Result { try block() } }
-        return try result!.get()
+        let result: Result<T, Error> = DispatchQueue.main.sync { Result { try block() } }
+        return try result.get()
     }
 
     /// Create an NSWindow with a single NSTextField and return the text field.

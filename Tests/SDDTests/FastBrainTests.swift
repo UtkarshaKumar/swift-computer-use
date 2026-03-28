@@ -8,12 +8,12 @@ private let defaultViewport = CGRect(x: 0, y: 0, width: 1440, height: 900)
 private let belowFoldY: CGFloat = 1100  // below the 900pt viewport height
 
 private func makeSnapshot(
-    elements: [UIElement],
-    focusedElement: UIElement? = nil,
+    elements: [FBElement],
+    focusedElement: FBElement? = nil,
     viewportFrame: CGRect = defaultViewport
-) -> WorldModelSnapshot {
-    WorldModelSnapshot(
-        appContext: AppContext(
+) -> FBSnapshot {
+    FBSnapshot(
+        appContext: FBAppContext(
             bundleID: "com.test.app",
             focusedElement: focusedElement,
             viewportFrame: viewportFrame
@@ -27,8 +27,8 @@ private func textField(
     focused: Bool = false,
     enabled: Bool = true,
     role: String = "AXTextField"
-) -> UIElement {
-    UIElement(role: role, label: label, isFocused: focused, isEnabled: enabled)
+) -> FBElement {
+    FBElement(role: role, label: label, isFocused: focused, isEnabled: enabled)
 }
 
 private func button(
@@ -36,21 +36,21 @@ private func button(
     enabled: Bool = true,
     visible: Bool = true,
     frame: CGRect = CGRect(x: 0, y: 100, width: 100, height: 44)
-) -> UIElement {
-    UIElement(role: "AXButton", label: label, isEnabled: enabled, isVisible: visible, frame: frame)
+) -> FBElement {
+    FBElement(role: "AXButton", label: label, isEnabled: enabled, isVisible: visible, frame: frame)
 }
 
-private func checkbox(label: String, enabled: Bool = true) -> UIElement {
-    UIElement(role: "AXCheckBox", label: label, isEnabled: enabled, isVisible: true)
+private func checkbox(label: String, enabled: Bool = true) -> FBElement {
+    FBElement(role: "AXCheckBox", label: label, isEnabled: enabled, isVisible: true)
 }
 
-private func scrollArea() -> UIElement {
-    UIElement(role: "AXScrollArea", label: "Content", isVisible: true)
+private func scrollArea() -> FBElement {
+    FBElement(role: "AXScrollArea", label: "Content", isVisible: true)
 }
 
-private func canvasElement(label: String) -> UIElement {
+private func canvasElement(label: String) -> FBElement {
     // AXUnknown role signals a canvas region with no AX coverage
-    UIElement(role: "AXUnknown", label: label, isEnabled: true, isVisible: true)
+    FBElement(role: "AXUnknown", label: label, isEnabled: true, isVisible: true)
 }
 
 // MARK: - FastBrainTests
@@ -190,7 +190,7 @@ final class FastBrainTests: XCTestCase {
 
     /// Test 9: typeValue with targetLabel, element is below fold → scroll action
     func test_fast_09_typeValue_targetBelowFold_scrollFirst() {
-        let offScreenField = UIElement(
+        let offScreenField = FBElement(
             role: "AXTextField",
             label: "City",
             isFocused: false,

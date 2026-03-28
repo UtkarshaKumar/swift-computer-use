@@ -96,13 +96,21 @@ let package = Package(
         // MARK: - Tests
         .testTarget(
             name: "SDDTests",
-            dependencies: ["SDDCore"],
-            path: "Tests/SDDTests"
+            dependencies: ["SDDCore", "SDD"],
+            path: "Tests/SDDTests",
+            linkerSettings: [
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AppKit"),
+            ]
         ),
         .testTarget(
             name: "SDDWorldModelTests",
-            dependencies: ["SDDCore"],
-            path: "Tests/SDD"
+            dependencies: ["SDDCore", "SDD"],
+            path: "Tests/SDD",
+            linkerSettings: [
+                .linkedFramework("ApplicationServices"),
+                .linkedFramework("AppKit"),
+            ]
         ),
     ]
 )

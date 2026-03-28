@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package sdd;
+
+service SDD {
+    rpc Click(ClickRequest) returns (ActionResponse);
+    rpc Type(TypeRequest) returns (ActionResponse);
+    rpc Scroll(ScrollRequest) returns (ActionResponse);
+    rpc Status(StatusRequest) returns (StatusResponse);
+    rpc Stream(StreamRequest) returns (stream WorldModelDiff);
+}
+
+message ClickRequest {
+    string label = 1;
+}
+
+message TypeRequest {
+    string field = 1;
+    string value = 2;
+}
+
+message ScrollRequest {
+    ScrollDirection direction = 1;
+    int32 amount = 2;
+}
+
+enum ScrollDirection {
+    UP = 0;
+    DOWN = 1;
+}
+
+message StreamRequest {
+}
+
+message ActionResponse {
+    bool success = 1;
+    string error = 2;
+}
+
+message StatusRequest {
+}
+
+message StatusResponse {
+    string focused_app = 1;
+    string focused_element = 2;
+    string error = 3;
+}
+
+message WorldModelDiff {
+    string json_diff = 1;
+}

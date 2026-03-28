@@ -1,0 +1,40 @@
+{
+  "": {
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/primary.swiftdeps"
+  },
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalCase.swift": {
+    "dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.d",
+    "object": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swift.o",
+    "swiftmodule": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase~partial.swiftmodule",
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.swiftdeps",
+    "diagnostics": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalCase.dia"
+  },
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalResult.swift": {
+    "dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.d",
+    "object": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swift.o",
+    "swiftmodule": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult~partial.swiftmodule",
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.swiftdeps",
+    "diagnostics": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalResult.dia"
+  },
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalRunner.swift": {
+    "dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.d",
+    "object": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swift.o",
+    "swiftmodule": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner~partial.swiftmodule",
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.swiftdeps",
+    "diagnostics": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalRunner.dia"
+  },
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/EvalStubs.swift": {
+    "dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.d",
+    "object": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swift.o",
+    "swiftmodule": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs~partial.swiftmodule",
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.swiftdeps",
+    "diagnostics": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/EvalStubs.dia"
+  },
+  "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/Sources/main.swift": {
+    "dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.d",
+    "object": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swift.o",
+    "swiftmodule": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main~partial.swiftmodule",
+    "swift-dependencies": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.swiftdeps",
+    "diagnostics": "/Users/utkarshkumar/.worktrees/sdd-opencode-minimax/minimax-1/Tests/EVALRunner/.build/arm64-apple-macosx/debug/EVALRunner.build/main.dia"
+  }
+}

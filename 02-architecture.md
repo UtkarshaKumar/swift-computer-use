@@ -164,6 +164,11 @@
 **Decision:** Bridge to Playwright/CDP. The SDD manages the Playwright process lifecycle and exposes browser operations through the same action executor API.
 **Consequences:** Browser automation is mature and well-tested in Playwright. We avoid reimplementing CDP. Trade-off: dependency on Node.js process. Mitigated by bundling Playwright runtime.
 
+### ADR-007: FastBrain Rule Evaluation Order
+**Context:** FastBrain must select one action from multiple competing rules without ambiguity. What order should rules run in, and what happens when multiple rules could apply?
+**Decision:** Fixed priority order: FocusedFieldRule → ButtonMatchRule → ScrollRule → NoMatchRule. First rule to produce a match wins; evaluation stops immediately. Ambiguity within ButtonMatchRule (multiple equal-confidence candidates) drops confidence to 0.60, which falls below the default threshold and forces slow brain escalation.
+**Consequences:** Most deterministic outcomes are at the top of the stack (focused field is unambiguous; exact button labels are unambiguous). Ambiguous cases are explicitly detected and escalated rather than guessed. The fixed order also bounds evaluation time: worst case is O(n) per rule × 3 rules = O(3n), well under 1ms for typical element counts.
+
 ---
 
 ## Implementation Phases

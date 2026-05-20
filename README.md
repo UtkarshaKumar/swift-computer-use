@@ -1,4 +1,4 @@
-# Semantic Display Daemon
+# swift-computer-use
 
 > macOS computer use for AI agents — faster and more reliable than screenshot-based approaches.
 

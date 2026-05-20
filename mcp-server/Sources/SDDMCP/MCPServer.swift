@@ -2,7 +2,7 @@ import Foundation
 import MCP
 import Logging
 
-/// MCP Server implementation for the Semantic Display Daemon
+/// MCP Server implementation for the swift-computer-use
 public actor SDDMCPServer {
     private let server: Server
     private let grpcClient: SDDGRPCClient

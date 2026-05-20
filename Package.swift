@@ -2,7 +2,7 @@
 import PackageDescription
 
 // ──────────────────────────────────────────────────────────────────
-// Semantic Display Daemon — unified package manifest
+// swift-computer-use — unified package manifest
 //
 // Targets produced by each agent (see GitHub Issues for authorship):
 //   SDDCore        — core library: AX layer, world model, action executor, logging

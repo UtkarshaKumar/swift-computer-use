@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ShowUI-2B inference server for SDD (Semantic Display Daemon).
+ShowUI-2B inference server for SDD (swift-computer-use).
 Runs locally on port 7080. Swift's ShowUIClient calls this for visual element grounding.
 
 Setup:

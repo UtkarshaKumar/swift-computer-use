@@ -1,10 +1,10 @@
 # SDD MCP Server
 
-MCP (Model Context Protocol) server wrapper for the Semantic Display Daemon.
+MCP (Model Context Protocol) server wrapper for the swift-computer-use.
 
 ## Overview
 
-This MCP server provides a bridge between AI agents and the Semantic Display Daemon (SDD) gRPC service running on localhost:7800. It exposes SDD functionality through the Model Context Protocol, making it compatible with Claude Code and other MCP-compatible agents.
+This MCP server provides a bridge between AI agents and the swift-computer-use gRPC service running on localhost:7800. It exposes SDD functionality through the Model Context Protocol, making it compatible with Claude Code and other MCP-compatible agents.
 
 ## Server Info
 
@@ -117,4 +117,4 @@ swift run
 
 ## License
 
-Part of the Semantic Display Daemon project.
+Part of the swift-computer-use project.

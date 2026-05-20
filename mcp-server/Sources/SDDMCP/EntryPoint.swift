@@ -15,7 +15,7 @@ struct EntryPoint {
         }
         
         let logger = Logger(label: "SDDMCP")
-        logger.info("Starting SDD MCP Server (Semantic Display Daemon)")
+        logger.info("Starting SDD MCP Server (swift-computer-use)")
         logger.info("Server info: name=sdd, version=0.1.0")
         logger.info("Listening on http://localhost:7801")
         logger.info("Connecting to gRPC server at localhost:7800")

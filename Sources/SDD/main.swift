@@ -4,7 +4,7 @@ import SDDCore
 import SDDBrain
 
 // ─────────────────────────────────────────────────────────────────
-// Semantic Display Daemon — bootstrap
+// swift-computer-use — bootstrap
 //
 // Pipeline:
 //   AXObserverManager  ─→  WorldModel.apply(event:)

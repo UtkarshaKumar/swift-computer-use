@@ -3,7 +3,7 @@ import GRPC
 import NIO
 import Logging
 
-/// gRPC client for communicating with the Semantic Display Daemon
+/// gRPC client for communicating with the swift-computer-use
 public actor SDDGRPCClient {
     private let channel: GRPCChannel
     private let logger: Logger

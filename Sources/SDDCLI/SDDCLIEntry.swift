@@ -7,7 +7,7 @@ import SDDCore
 struct SDDCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "sdd",
-        abstract: "Semantic Display Daemon CLI",
+        abstract: "swift-computer-use CLI",
         subcommands: [LogCommand.self, ClickCommand.self, RunCommand.self, RecordCommand.self,
                       StatusCommand.self, OverrideCommand.self, StopCommand.self],
         defaultSubcommand: nil

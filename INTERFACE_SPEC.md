@@ -1,6 +1,6 @@
 # SDD Interface Specification
 
-> **This document is the contract between the Semantic Display Daemon (SDD) and external agent consumers (Kimi, Gemini, Claude, custom agents).**
+> **This document is the contract between the swift-computer-use and external agent consumers (Kimi, Gemini, Claude, custom agents).**
 >
 > Version: 0.1.0 · Last updated: 2026-03-28
 >

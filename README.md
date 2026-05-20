@@ -2,7 +2,9 @@
 
 > macOS computer use for AI agents — faster and more reliable than screenshot-based approaches.
 
-**Status: Archived.** OpenAI and Google shipped native computer use before this was finished. Leaving it here because the fast/slow brain architecture is genuinely useful and worth stealing.
+**Status: Archived. No further maintenance planned.**
+
+OpenAI and Google shipped native computer use while this was in development, which closed the window. I'm not going to maintain or extend this. The fast/slow brain architecture is the part worth taking — it's a general pattern for any agent that needs to act on a UI.
 
 ---
 
@@ -203,10 +205,9 @@ sdd record "fill out the weekly expense report"
 
 | File | Contents |
 |---|---|
-| `01-problem-solution.md` | Full problem definition and solution space |
-| `02-architecture.md` | System architecture, component specs, architectural decision records |
-| `03-monetization.md` | The SaaS model I was planning before the window closed |
-| `04-use-cases-evals.md` | Use cases + EVAL suite with performance targets |
+| `02-architecture.md` | System architecture, component specs, architectural decision records (ADRs) |
+| `04-use-cases-evals.md` | Use cases + EVAL suite with concrete performance targets |
+| `INTERFACE_SPEC.md` | MCP tool definitions, gRPC API, and CLI interface specification |
 
 ---
 

@@ -6,3 +6,10 @@ Tests/EVALRunner/.build/
 *.swp
 .DS_Store
 gemini-run.log
+
+# Personal scaffolding — not for public repo
+agent-orchestrator.yaml
+claude.md
+01-problem-solution.md
+03-monetization.md
+.tmp_analysis/
